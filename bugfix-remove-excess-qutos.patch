@@ -1,0 +1,24 @@
+From a8107bb28cc702806ab74dd8a826d59c2ae7be6a Mon Sep 17 00:00:00 2001
+From: fengtao <fengtao40@huawei.com>
+Date: Tue, 10 Sep 2019 21:43:31 +0800
+Subject: [PATCH] fix grub2-setpassword errors for euleros
+
+---
+ util/grub-set-password.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/util/grub-set-password.in b/util/grub-set-password.in
+index 5ebf505..4b88dee 100644
+--- a/util/grub-set-password.in
++++ b/util/grub-set-password.in
+@@ -1,6 +1,6 @@
+ #!/bin/sh -e
+ 
+-EFIDIR=$(grep ^ID= /etc/os-release | sed -e 's/^ID=//' -e 's/rhel/redhat/')
++EFIDIR=$(grep ^ID= /etc/os-release | sed -e 's/^ID=//' -e 's/rhel/redhat/' | tr -d '"')
+ if [ -d /sys/firmware/efi/efivars/ ]; then
+     grubdir=`echo "/@bootdirname@/efi/EFI/${EFIDIR}/" | sed 's,//*,/,g'`
+ else
+-- 
+2.19.1
+

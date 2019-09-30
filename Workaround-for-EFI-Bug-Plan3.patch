@@ -1,0 +1,157 @@
+From cd19beea0f46f2648e8fbf145bc6014e7096e693 Mon Sep 17 00:00:00 2001
+From: Zhao Lei <zhaolei59@huawei.com>
+Date: Mon, 25 Feb 2019 18:04:10 +0800
+Subject: [PATCH] Workaround for EFI Bug (Plan3)
+
+Signed-off-by: Zhao Lei <zhaolei59@huawei.com>
+---
+ grub-core/disk/efi/efidisk.c | 108 ++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 107 insertions(+), 1 deletion(-)
+
+diff --git a/grub-core/disk/efi/efidisk.c b/grub-core/disk/efi/efidisk.c
+index f04f20b..3786438 100644
+--- a/grub-core/disk/efi/efidisk.c
++++ b/grub-core/disk/efi/efidisk.c
+@@ -27,12 +27,19 @@
+ #include <grub/efi/efi.h>
+ #include <grub/efi/disk.h>
+ 
++typedef enum {
++  GRUB_EFI_BIOS_OVERFLOW_INIT,
++  GRUB_EFI_BIOS_OVERFLOW_EXIST,
++  GRUB_EFI_BIOS_OVERFLOW_NOEXIST
++} grub_efi_bios_overflow_t;
++
+ struct grub_efidisk_data
+ {
+   grub_efi_handle_t handle;
+   grub_efi_device_path_t *device_path;
+   grub_efi_device_path_t *last_device_path;
+   grub_efi_block_io_t *block_io;
++  grub_efi_bios_overflow_t bios_overflow;
+   struct grub_efidisk_data *next;
+ };
+ 
+@@ -92,6 +99,7 @@ make_devices (void)
+       d->device_path = dp;
+       d->last_device_path = ldp;
+       d->block_io = bio;
++      d->bios_overflow = GRUB_EFI_BIOS_OVERFLOW_INIT;
+       d->next = devices;
+       devices = d;
+     }
+@@ -519,8 +527,9 @@ grub_efidisk_close (struct grub_disk *disk __attribute__ ((unused)))
+   grub_dprintf ("efidisk", "closing %s\n", disk->name);
+ }
+ 
++
+ static grub_efi_status_t
+-grub_efidisk_readwrite (struct grub_disk *disk, grub_disk_addr_t sector,
++__grub_efidisk_readwrite (struct grub_disk *disk, grub_disk_addr_t sector,
+ 			grub_size_t size, char *buf, int wr)
+ {
+   struct grub_efidisk_data *d;
+@@ -563,6 +572,103 @@ grub_efidisk_readwrite (struct grub_disk *disk, grub_disk_addr_t sector,
+   return status;
+ }
+ 
++static void grub_efidisk_set_overflow(struct grub_disk *disk)
++{
++  struct grub_efidisk_data *d = disk->data;
++
++  char *buf;
++  int read_len;
++  int buf_len;
++
++  static char magic_list[] = {0x55, 0xaa};
++  unsigned int magic_index;
++
++  if (d->bios_overflow != GRUB_EFI_BIOS_OVERFLOW_INIT)
++    return;
++
++  if (d->block_io->media->removable_media) {
++    d->bios_overflow = GRUB_EFI_BIOS_OVERFLOW_NOEXIST;
++    return;
++  }
++
++  read_len = (1 << disk->log_sector_size);
++
++  /* read_len + 9 is enough, we use more */
++  buf_len = (read_len + 8) * 2;
++
++  buf = grub_malloc(buf_len);
++  if (!buf) {
++      grub_printf("grub_efidisk_set_overflow: malloc failed, ignore operation %s\n", disk->name);
++      d->bios_overflow = GRUB_EFI_BIOS_OVERFLOW_EXIST;
++      return;
++  }
++
++  for (magic_index = 0; magic_index < sizeof(magic_list)/sizeof(magic_list[0]); magic_index++) {
++    int buf_index;
++
++    grub_memset(buf + read_len, magic_list[magic_index], buf_len - read_len);
++
++    /*
++     * If disk can not read, we can not determine overflow state now,
++     * just leave GRUB_EFI_BIOS_OVERFLOW_INIT state and re-check on
++     * next operation of this disk.
++     */
++    if (GRUB_EFI_SUCCESS != __grub_efidisk_readwrite(disk, 0, 1, buf, 0)) {
++      d->bios_overflow = GRUB_EFI_BIOS_OVERFLOW_INIT;
++      goto out;
++    }
++
++    for (buf_index = read_len; buf_index < buf_len; buf_index++) {
++      if (buf[buf_index] != magic_list[magic_index]) {
++        d->bios_overflow = GRUB_EFI_BIOS_OVERFLOW_EXIST;
++        goto out;
++      }
++    }
++  }
++
++  d->bios_overflow = GRUB_EFI_BIOS_OVERFLOW_NOEXIST;
++
++out:
++  grub_free(buf);
++  return;
++}
++
++static int grub_efidisk_check_overflow(struct grub_disk *disk)
++{
++  struct grub_efidisk_data *d = disk->data;
++  int ret;
++
++  grub_efidisk_set_overflow(disk);
++
++  switch (d->bios_overflow) {
++  case GRUB_EFI_BIOS_OVERFLOW_INIT:
++    ret = 0;
++    break;
++  case GRUB_EFI_BIOS_OVERFLOW_NOEXIST:
++    ret = 0;
++    break;
++  case GRUB_EFI_BIOS_OVERFLOW_EXIST:
++    ret = 1;
++    break;
++  default:
++    grub_printf("grub_efidisk_check_overflow: internal error in bios_overflow value(%d), ignore operation %s\n", d->bios_overflow, disk->name);
++    ret = 1;
++    break;
++  }
++
++  return ret;
++}
++
++static grub_efi_status_t
++grub_efidisk_readwrite (struct grub_disk *disk, grub_disk_addr_t sector,
++			grub_size_t size, char *buf, int wr)
++{
++  if (grub_efidisk_check_overflow(disk))
++    return GRUB_ERR_UNKNOWN_DEVICE;
++
++  return __grub_efidisk_readwrite(disk, sector, size, buf, wr);
++}
++
+ static grub_err_t
+ grub_efidisk_read (struct grub_disk *disk, grub_disk_addr_t sector,
+ 		   grub_size_t size, char *buf)

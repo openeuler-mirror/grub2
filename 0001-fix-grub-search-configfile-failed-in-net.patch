@@ -1,0 +1,29 @@
+From 288c6b760bc1e04893178e59b621aaea5bcbdac6 Mon Sep 17 00:00:00 2001
+From: Fedora Ninjas <grub2-owner@fedoraproject.org>
+Date: Wed, 10 Apr 2019 15:38:33 +0100
+Subject: [PATCH] fix grub search configfile failed in net
+
+---
+ grub-core/net/net.c | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/grub-core/net/net.c b/grub-core/net/net.c
+index a571ee9..55af4b0 100644
+--- a/grub-core/net/net.c
++++ b/grub-core/net/net.c
+@@ -1942,11 +1942,7 @@ grub_net_search_configfile (char *config)
+       char *client_uuid_var;
+       grub_size_t client_uuid_var_size;
+ 
+-      client_uuid_var_size = grub_snprintf (NULL, 0,
+-                     "net_%s_clientuuid", inf->name);
+-      if (client_uuid_var_size <= 0)
+-	continue;
+-      client_uuid_var_size += 1;
++      client_uuid_var_size = grub_strlen("net_") + grub_strlen(inf->name) + grub_strlen("_clientuuid") + 1;
+       client_uuid_var = grub_malloc(client_uuid_var_size);
+       if (!client_uuid_var)
+ 	continue;
+-- 
+2.19.1
+

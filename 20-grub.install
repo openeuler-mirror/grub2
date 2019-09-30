@@ -1,0 +1,143 @@
+#!/bin/bash
+
+if ! [[ $KERNEL_INSTALL_MACHINE_ID ]]; then
+    exit 0
+fi
+
+[[ -f /etc/default/grub ]] && . /etc/default/grub
+[[ -f /etc/os-release ]] && . /etc/os-release
+
+COMMAND="$1"
+KERNEL_VERSION="$2"
+BOOT_DIR_ABS="$3"
+KERNEL_IMAGE="$4"
+
+KERNEL_DIR="${KERNEL_IMAGE%/*}"
+
+MACHINE_ID=$KERNEL_INSTALL_MACHINE_ID
+
+# Remove it, since for grub2 the images are always installed in /boot
+rm -rf "${BOOT_DIR_ABS%/*}"
+
+BLS_DIR="/boot/loader/entries"
+
+mkbls() {
+    local kernelver=$1 && shift
+    local datetime=$1 && shift
+
+    local debugname=""
+    local debugid=""
+    local flavor=""
+
+    if [[ "$kernelver" == *\+* ]] ; then
+        local flavor=-"${kernelver##*+}"
+        if [[ "${flavor}" == "-debug" ]]; then
+            local debugname=" with debugging"
+            local debugid="-debug"
+        fi
+    fi
+
+    cat <<EOF
+title ${NAME} (${kernelver}) ${VERSION}${debugname}
+version ${kernelver}${debugid}
+linux /vmlinuz-${kernelver}
+initrd /initramfs-${kernelver}.img
+options \$kernelopts
+id ${ID}-${datetime}-${kernelver}
+grub_users \$grub_users
+grub_arg --unrestricted
+grub_class kernel${flavor}
+EOF
+}
+
+[[ "$KERNEL_VERSION" == *\+* ]] && flavor=-"${KERNEL_VERSION##*+}"
+case "$COMMAND" in
+    add)
+        if [[ "${KERNEL_DIR}" != "/boot" ]]; then
+            for i in \
+                "$KERNEL_IMAGE" \
+                    "$KERNEL_DIR"/System.map \
+                    "$KERNEL_DIR"/config \
+                    "$KERNEL_DIR"/zImage.stub \
+                    "$KERNEL_DIR"/dtb
+            do
+                [[ -e "$i" ]] || continue
+                cp -aT "$i" "/boot/${i##*/}-${KERNEL_VERSION}"
+                command -v restorecon &>/dev/null && \
+                    restorecon -R "/boot/${i##*/}-${KERNEL_VERSION}"
+            done
+            # hmac is .vmlinuz-<version>.hmac so needs a special treatment
+            i="$KERNEL_DIR/.${KERNEL_IMAGE##*/}.hmac"
+            if [[ -e "$i" ]]; then
+                cp -a "$i" "/boot/.${KERNEL_IMAGE##*/}-${KERNEL_VERSION}.hmac"
+                command -v restorecon &>/dev/null && \
+                    restorecon "/boot/.${KERNEL_IMAGE##*/}-${KERNEL_VERSION}.hmac"
+            fi
+        fi
+
+        if [[ "x${GRUB_ENABLE_BLSCFG}" = "xtrue" ]] || [[ ! -f /sbin/new-kernel-pkg ]]; then
+            [[ -d "$BLS_DIR" ]] || mkdir -m 0700 -p "$BLS_DIR"
+            BLS_TARGET="${BLS_DIR}/${MACHINE_ID}-${KERNEL_VERSION}.conf"
+            if [[ -f "${KERNEL_DIR}/bls.conf" ]]; then
+                cp -aT "${KERNEL_DIR}/bls.conf" "${BLS_TARGET}" || exit $?
+            else
+                mkbls "${KERNEL_VERSION}" \
+                    "$(date -u +%Y%m%d%H%M%S -d "$(stat -c '%y' "${KERNEL_DIR}")")" \
+                    >"${BLS_TARGET}"
+            fi
+
+            LINUX="$(grep '^linux[ \t]' "${BLS_TARGET}" | sed -e 's,^linux[ \t]*,,')"
+            INITRD="$(grep '^initrd[ \t]' "${BLS_TARGET}" | sed -e 's,^initrd[ \t]*,,')"
+            LINUX_RELPATH="$(grub2-mkrelpath /boot${LINUX})"
+            BOOTPREFIX="$(dirname ${LINUX_RELPATH})"
+
+            if [[ $LINUX != $LINUX_RELPATH ]]; then
+                sed -i -e "s,^linux.*,linux ${BOOTPREFIX}${LINUX},g" "${BLS_TARGET}"
+                sed -i -e "s,^initrd.*,initrd ${BOOTPREFIX}${INITRD},g" "${BLS_TARGET}"
+            fi
+
+            eval "$(grub2-get-kernel-settings)" || true
+            if [ "x$GRUB_LINUX_MAKE_DEBUG" = "xtrue" ]; then
+                ARCH="$(uname -m)"
+                BLS_DEBUG="$(echo ${BLS_TARGET} | sed -e "s/\.${ARCH}/-debug.${ARCH}/")"
+                cp -aT  "${BLS_TARGET}" "${BLS_DEBUG}"
+                TITLE="$(grep '^title[ \t]' "${BLS_DEBUG}" | sed -e 's/^title[ \t]*//')"
+                BLSID="$(grep '^id[ \t]' "${BLS_DEBUG}" | sed -e "s/\.${ARCH}/-debug.${ARCH}/")"
+                sed -i -e "s/^title.*/title ${TITLE}${GRUB_LINUX_DEBUG_TITLE_POSTFIX}/" "${BLS_DEBUG}"
+                sed -i -e "s/^id.*/${BLSID}/" "${BLS_DEBUG}"
+                sed -i -e "s/^options.*/options \$kernelopts ${GRUB_CMDLINE_LINUX_DEBUG}/" "${BLS_DEBUG}"
+	    fi
+
+            exit 0
+        fi
+
+        /sbin/new-kernel-pkg --package "kernel${flavor}" --install "$KERNEL_VERSION" || exit $?
+        /sbin/new-kernel-pkg --package "kernel${flavor}" --mkinitrd --dracut --depmod --update "$KERNEL_VERSION" || exit $?
+        /sbin/new-kernel-pkg --package "kernel${flavor}" --rpmposttrans "$KERNEL_VERSION" || exit $?
+        # If grubby is used there's no need to run other installation plugins
+        exit 77
+        ;;
+    remove)
+
+        if [[ "x${GRUB_ENABLE_BLSCFG}" = "xtrue" ]] || [[ ! -f /sbin/new-kernel-pkg ]]; then
+            ARCH="$(uname -m)"
+            BLS_TARGET="${BLS_DIR}/${MACHINE_ID}-${KERNEL_VERSION}.conf"
+            BLS_DEBUG="$(echo ${BLS_TARGET} | sed -e "s/\.${ARCH}/-debug.${ARCH}/")"
+            rm -f "${BLS_TARGET}" "${BLS_DEBUG}"
+
+            for i in vmlinuz System.map config zImage.stub dtb; do
+                rm -rf "/boot/${i}-${KERNEL_VERSION}"
+            done
+            # hmac is .vmlinuz-<version>.hmac so needs a special treatment
+            rm -f "/boot/.vmlinuz-${KERNEL_VERSION}.hmac"
+
+            exit 0
+        fi
+
+        /sbin/new-kernel-pkg --package "kernel${flavor+-$flavor}" --rminitrd --rmmoddep --remove "$KERNEL_VERSION" || exit $?
+        # If grubby is used there's no need to run other installation plugins
+        exit 77
+        ;;
+    *)
+        ;;
+esac
