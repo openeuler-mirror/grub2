@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.02
-Release:	68
+Release:	70
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -180,6 +180,9 @@ cat << EOF > grub2.conf
 EOF
 popd
 
+
+mkdir -p %{buildroot}%{_datadir}/grub/themes
+
 install -d -m 0755 %{buildroot}%{_prefix}/lib/kernel/install.d
 install -m 0755 %{SOURCE9} %{buildroot}%{_prefix}/lib/kernel/install.d
 
@@ -200,6 +203,7 @@ install -d -m 0755 %{buildroot}%{_libexecdir}/installkernel
 cp -v %{SOURCE11} %{buildroot}%{_libexecdir}/installkernel
 sed -e "s,@@LIBEXECDIR@@,%{_libexecdir}/installkernel,g" %{SOURCE12} \
 	> %{buildroot}%{_sbindir}/installkernel
+
 
 %global finddebugroot "%{_builddir}/%{?buildsubdir}/debug"
 
@@ -287,7 +291,7 @@ fi
 %ghost %config(noreplace) /boot/grub2/grubenv
 %exclude /boot/grub2/*
 %dir %{_libdir}/grub/
-%dir %{_datarootdir}/grub/themes/
+%{_datarootdir}/grub/themes/
 %attr(0700,root,root) %dir %{_sysconfdir}/grub.d
 %{_prefix}/lib/kernel/install.d/20-grub.install
 %{_sysconfdir}/kernel/install.d/*.install
@@ -352,6 +356,18 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Tue Dec 10 2019 openEuler Buildteam <buildteam@openeuler.org> - 2.02-70
+- Type:bugfix
+- Id:NA
+- SUG:NA
+- DESC:add the path for themes
+
+* Tue Dec 3 2019 openEuler Buildteam <buildteam@openeuler.org> - 2.02-69
+- Type:bugfix
+- Id:NA
+- SUG:NA
+- DESC:add config_for_secure file for gcc_secure
+
 * Sat Sep 28 2019 openEuler Buildteam <buildteam@openeuler.org> - 2.02-68
 - Type:bugfix
 - Id:NA

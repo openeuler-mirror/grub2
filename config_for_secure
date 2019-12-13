@@ -1,0 +1,3 @@
+rpm_name:grub2
+sec_opt:-fPIC -Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -Wtrampolines
+fs_opt:
