@@ -249,6 +249,8 @@ Patch6006: grub-core-loader-efi-fdt.c-Do-not-copy-random-memory.patch
 Patch6007: arm-Move-initrd-upper-to-leave-more-space-for-kernel.patch
 Patch6008: normal-menu-Do-not-treat-error-values-as-key-presses.patch
 Patch6009: osdep-freebsd-Fix-partition-calculation-for-EBR-entr.patch
+Patch6010: 0001-CVE-2019-14865.patch
+Patch6011: 0002-CVE-2019-14865.patch
 Patch9000: 0001-fix-grub-search-configfile-failed-in-net.patch
 Patch9001: Workaround-for-EFI-Bug-Plan3.patch
 Patch9002: revert-0067-Be-more-aggro.patch

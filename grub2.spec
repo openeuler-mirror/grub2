@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.02
-Release:	70
+Release:	71
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -356,6 +356,12 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Sat Dec 21 2019 openEuler Buildteam <buildteam@openeuler.org> - 2.02-71
+- Type:cves
+- Id:NA
+- SUG:NA
+- DESC:add cve patches
+
 * Tue Dec 10 2019 openEuler Buildteam <buildteam@openeuler.org> - 2.02-70
 - Type:bugfix
 - Id:NA

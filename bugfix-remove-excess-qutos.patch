@@ -1,7 +1,7 @@
 From a8107bb28cc702806ab74dd8a826d59c2ae7be6a Mon Sep 17 00:00:00 2001
 From: fengtao <fengtao40@huawei.com>
 Date: Tue, 10 Sep 2019 21:43:31 +0800
-Subject: [PATCH] fix grub2-setpassword errors for euleros
+Subject: [PATCH] fix grub2-setpassword errors for openEuler
 
 ---
  util/grub-set-password.in | 2 +-
