@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.02
-Release:	71
+Release:	72
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -141,6 +141,11 @@ makeinfo --info --no-split -I docs -o docs/grub-dev.info docs/grub-dev.texi
 makeinfo --info --no-split -I docs -o docs/grub.info docs/grub.texi
 makeinfo --html --no-split -I docs -o docs/grub-dev.html docs/grub-dev.texi
 makeinfo --html --no-split -I docs -o docs/grub.html docs/grub.texi
+
+%check
+pushd %{_builddir}/%{?buildsubdir}/grub-%{grubefiarch}-%{tarversion}/grub-core
+make check
+popd
 
 %install
 set -e
@@ -356,6 +361,12 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Thu Feb 20 2020 openEuler Buildteam <buildteam@openeuler.org> - 2.02-72
+- Type:bugfix
+- Id:NA
+- SUG:NA
+- DESC:add make check function
+
 * Sat Dec 21 2019 openEuler Buildteam <buildteam@openeuler.org> - 2.02-71
 - Type:cves
 - Id:NA
