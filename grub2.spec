@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.02
-Release:	73
+Release:	74
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -310,6 +310,8 @@ fi
 %exclude %{_sbindir}/grub2-set-bootflag
 %attr(4755, root, root) %{_sbindir}/grub2-set-bootflag
 %{_bindir}/grub2-*
+%exclude %{_sbindir}/%{name}-macbless
+%exclude %{_bindir}/%{name}-render-label
 %config %{_sysconfdir}/grub.d/??_*
 %exclude %{_sysconfdir}/grub.d/01_fallback_counting
 %attr(0644,root,root) %ghost %config(noreplace) %{_sysconfdir}/default/grub
@@ -361,6 +363,9 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Fri Apr 24 2020 fengtao <fengtao40@huawei.com> - 2.02-74
+- exclude two cmd in grub2-tools
+
 * Wed Mar 3 2020 songnannan <songnannan2@huawei.com> - 2.02-73
 - delete java-1.8.0-openjdk in buildrequires
 
