@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.02
-Release:	73
+Release:	74
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -361,7 +361,10 @@ fi
 %{_datadir}/man/man*
 
 %changelog
-* Wed Mar 3 2020 songnannan <songnannan2@huawei.com> - 2.02-73
+* Mon May 25 2020 songnannan <songnannan2@huawei.com> - 2.02-74
+- rebuild for the update packages
+
+* Wed May 3 2020 songnannan <songnannan2@huawei.com> - 2.02-73
 - delete java-1.8.0-openjdk in buildrequires
 
 * Thu Feb 20 2020 openEuler Buildteam <buildteam@openeuler.org> - 2.02-72
