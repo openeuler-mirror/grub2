@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.02
-Release:	74
+Release:	75
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -361,6 +361,9 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Fri Jun 5 2020 fengtao <fengtao40@huawei.com> - 2.02-75
+- remove sign for grub efi
+
 * Mon May 25 2020 songnannan <songnannan2@huawei.com> - 2.02-74
 - rebuild for the update packages
 
