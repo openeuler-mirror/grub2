@@ -351,6 +351,8 @@ done								\
 	-p /EFI/%{efi_vendor} -d grub-core ${GRUB_MODULES}	\
 %{4}./grub-mkimage -O %{1} -o %{3}.orig				\\\
 	-p /EFI/BOOT -d grub-core ${GRUB_MODULES}		\
+install -m 700 %{2}.orig %{2}                                   \
+install -m 700 %{3}.orig %{3}                                   \
 %{nil}
 %else
 %define mkimage()						\
@@ -358,8 +360,6 @@ done								\
 	-p /EFI/%{efi_vendor} -d grub-core ${GRUB_MODULES}	\
 %{4}./grub-mkimage -O %{1} -o %{3}				\\\
 	-p /EFI/BOOT -d grub-core ${GRUB_MODULES}		\
-install -m 700 %{2}.orig %{2}                                   \
-install -m 700 %{3}.orig %{3}                                   \
 %{nil}
 %endif
 
