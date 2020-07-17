@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.02
-Release:	74
+Release:	75
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -27,7 +27,7 @@ Source12:	installkernel.in
 %include %{SOURCE2}
 
 BuildRequires:	gcc efi-srpm-macros flex bison binutils python3 ncurses-devel xz-devel
-BuildRequires:	freetype-devel libusb-devel bzip2-devel rpm-devel rpm-devel rpm-libs
+BuildRequires:	freetype-devel libusb-devel bzip2-devel rpm-devel rpm-libs
 BuildRequires:	autoconf automake autogen device-mapper-devel freetype-devel git
 BuildRequires:	texinfo gettext-devel dejavu-sans-fonts help2man systemd 
 
@@ -363,6 +363,10 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+
+* Fri July 17 2020 chenyaqiang <chenyaqiang@huawei.com> - 2.02-75
+- remove repeated buildrequest packge “rpm-devel” in grub2.spec
+
 * Fri Apr 24 2020 fengtao <fengtao40@huawei.com> - 2.02-74
 - exclude two cmd in grub2-tools
 
