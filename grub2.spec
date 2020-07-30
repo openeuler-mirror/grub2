@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.02
-Release:	75
+Release:	76
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -361,6 +361,12 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Fri Jul 31 2020 openEuler Buildteam <buildteam@openeuler.org> - 2.02-76
+- Type:cves
+- Id:CVE-2020-10713
+- SUG:NA
+- DESC:fix CVE-2020-10713
+
 * Fri Jun 5 2020 fengtao <fengtao40@huawei.com> - 2.02-75
 - remove sign for grub efi
 
