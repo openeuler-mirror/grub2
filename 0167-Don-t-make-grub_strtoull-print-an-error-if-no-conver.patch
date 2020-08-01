@@ -1,0 +1,34 @@
+From 46b860c3c423cefdf427aa547e43927400d02f8c Mon Sep 17 00:00:00 2001
+From: Javier Martinez Canillas <javierm@redhat.com>
+Date: Mon, 11 Feb 2019 15:14:10 +0100
+Subject: [PATCH 167/220] Don't make grub_strtoull() print an error if no
+ conversion is performed
+
+Callers can check if grub_errno was set to GRUB_ERR_BAD_NUMBER, so there's
+no need to print an error if a conversion couldn't be performed. This just
+pollutes the output with noisy error messages.
+
+Resolves: rhbz#1674512
+
+Signed-off-by: Javier Martinez Canillas <javierm@redhat.com>
+---
+ grub-core/kern/misc.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/grub-core/kern/misc.c b/grub-core/kern/misc.c
+index 18a7dbf..87afb43 100644
+--- a/grub-core/kern/misc.c
++++ b/grub-core/kern/misc.c
+@@ -475,8 +475,7 @@ grub_strtoull (const char * restrict str, const char ** const restrict end,
+ 
+   if (! found)
+     {
+-      grub_error (GRUB_ERR_BAD_NUMBER,
+-		  N_("unrecognized number"));
++      grub_errno = GRUB_ERR_BAD_NUMBER;
+       return 0;
+     }
+ 
+-- 
+1.8.3.1
+

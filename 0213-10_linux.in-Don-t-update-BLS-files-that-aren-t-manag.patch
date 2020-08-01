@@ -1,0 +1,59 @@
+From b72f41efc2b25d77e8530d0ed412acc03d6911d3 Mon Sep 17 00:00:00 2001
+From: Javier Martinez Canillas <javierm@redhat.com>
+Date: Wed, 20 May 2020 12:23:27 +0200
+Subject: [PATCH 213/220] 10_linux.in: Don't update BLS files that aren't
+ managed by GRUB scripts
+
+The script is updating all BLS files present in the /boot/loader/entries
+directory, but it should only update the BLS that belong to the machine.
+
+Otherwise if a user is sharing the same boot partition between different
+operating systems, the grub2-mkconfig tool will wrongly update BLS files
+that were created by a different OS.
+
+There are also cases where the BLS snippets are not managed by the GRUB
+scripts at all, for example in OSTree based systems. So it's also wrong
+to update the BLS snippets created by OSTree.
+
+Resolves: rhbz#1837783
+
+Signed-off-by: Javier Martinez Canillas <javierm@redhat.com>
+---
+ util/grub.d/10_linux.in | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/util/grub.d/10_linux.in b/util/grub.d/10_linux.in
+index 519e2d9..e61b6c9 100644
+--- a/util/grub.d/10_linux.in
++++ b/util/grub.d/10_linux.in
+@@ -138,16 +138,25 @@ blsdir="/boot/loader/entries"
+ 
+ get_sorted_bls()
+ {
++    if ! [ -d "${blsdir}" ] || ! [ -e /etc/machine-id ]; then
++        return
++    fi
++
++    read machine_id < /etc/machine-id
++    if [ -z "${machine_id}" ]; then
++        return
++    fi
++
+     local IFS=$'\n'
+ 
+-    files=($(for bls in ${blsdir}/*.conf; do
++    files=($(for bls in ${blsdir}/${machine_id}-*.conf; do
+         if ! [[ -e "${bls}" ]] ; then
+             continue
+         fi
+         bls="${bls%.conf}"
+         bls="${bls##*/}"
+         echo "${bls}"
+-    done | ${kernel_sort} | tac)) || :
++    done | ${kernel_sort} 2>/dev/null | tac)) || :
+ 
+     echo "${files[@]}"
+ }
+-- 
+1.8.3.1
+

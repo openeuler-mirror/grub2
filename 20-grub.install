@@ -16,14 +16,15 @@ KERNEL_DIR="${KERNEL_IMAGE%/*}"
 
 MACHINE_ID=$KERNEL_INSTALL_MACHINE_ID
 
-# Remove it, since for grub2 the images are always installed in /boot
-rm -rf "${BOOT_DIR_ABS%/*}"
+# If ${BOOT_DIR_ABS} exists, some other boot loader is active.
+[[ -d "${BOOT_DIR_ABS}" ]] && exit 0
 
 BLS_DIR="/boot/loader/entries"
 
 mkbls() {
     local kernelver=$1 && shift
     local datetime=$1 && shift
+    local kernelopts=$1 && shift
 
     local debugname=""
     local debugid=""
@@ -42,8 +43,7 @@ title ${NAME} (${kernelver}) ${VERSION}${debugname}
 version ${kernelver}${debugid}
 linux /vmlinuz-${kernelver}
 initrd /initramfs-${kernelver}.img
-options \$kernelopts
-id ${ID}-${datetime}-${kernelver}
+options ${kernelopts}
 grub_users \$grub_users
 grub_arg --unrestricted
 grub_class kernel${flavor}
@@ -62,6 +62,7 @@ case "$COMMAND" in
                     "$KERNEL_DIR"/dtb
             do
                 [[ -e "$i" ]] || continue
+                rm -f "/boot/${i##*/}-${KERNEL_VERSION}"
                 cp -aT "$i" "/boot/${i##*/}-${KERNEL_VERSION}"
                 command -v restorecon &>/dev/null && \
                     restorecon -R "/boot/${i##*/}-${KERNEL_VERSION}"
@@ -69,6 +70,7 @@ case "$COMMAND" in
             # hmac is .vmlinuz-<version>.hmac so needs a special treatment
             i="$KERNEL_DIR/.${KERNEL_IMAGE##*/}.hmac"
             if [[ -e "$i" ]]; then
+                rm -f "/boot/.${KERNEL_IMAGE##*/}-${KERNEL_VERSION}.hmac"
                 cp -a "$i" "/boot/.${KERNEL_IMAGE##*/}-${KERNEL_VERSION}.hmac"
                 command -v restorecon &>/dev/null && \
                     restorecon "/boot/.${KERNEL_IMAGE##*/}-${KERNEL_VERSION}.hmac"
@@ -76,38 +78,70 @@ case "$COMMAND" in
         fi
 
         if [[ "x${GRUB_ENABLE_BLSCFG}" = "xtrue" ]] || [[ ! -f /sbin/new-kernel-pkg ]]; then
-            [[ -d "$BLS_DIR" ]] || mkdir -m 0700 -p "$BLS_DIR"
-            BLS_TARGET="${BLS_DIR}/${MACHINE_ID}-${KERNEL_VERSION}.conf"
-            if [[ -f "${KERNEL_DIR}/bls.conf" ]]; then
-                cp -aT "${KERNEL_DIR}/bls.conf" "${BLS_TARGET}" || exit $?
+            if [[ -f /etc/kernel/cmdline ]]; then
+                read -r -d '' -a BOOT_OPTIONS < /etc/kernel/cmdline
+            elif [[ -f /usr/lib/kernel/cmdline ]]; then
+                read -r -d '' -a BOOT_OPTIONS < /usr/lib/kernel/cmdline
             else
-                mkbls "${KERNEL_VERSION}" \
-                    "$(date -u +%Y%m%d%H%M%S -d "$(stat -c '%y' "${KERNEL_DIR}")")" \
-                    >"${BLS_TARGET}"
+                declare -a BOOT_OPTIONS
+
+                read -r -d '' -a line < /proc/cmdline
+                for i in "${line[@]}"; do
+                    [[ "${i#initrd=*}" != "$i" ]] && continue
+                    [[ "${i#BOOT_IMAGE=*}" != "$i" ]] && continue
+                    BOOT_OPTIONS+=("$i")
+                done
             fi
+
+            eval "$(grub2-get-kernel-settings)" || true
+            [[ -d "$BLS_DIR" ]] || mkdir -m 0700 -p "$BLS_DIR"
+            BLS_ID="${MACHINE_ID}-${KERNEL_VERSION}"
+            BLS_TARGET="${BLS_DIR}/${BLS_ID}.conf"
+            mkbls "${KERNEL_VERSION}" \
+		  "$(date -u +%Y%m%d%H%M%S -d "$(stat -c '%y' "${KERNEL_DIR}")")" \
+                  "${BOOT_OPTIONS[*]}" >"${BLS_TARGET}"
+            command -v restorecon &>/dev/null && restorecon -R "${BLS_TARGET}"
 
             LINUX="$(grep '^linux[ \t]' "${BLS_TARGET}" | sed -e 's,^linux[ \t]*,,')"
             INITRD="$(grep '^initrd[ \t]' "${BLS_TARGET}" | sed -e 's,^initrd[ \t]*,,')"
             LINUX_RELPATH="$(grub2-mkrelpath /boot${LINUX})"
             BOOTPREFIX="$(dirname ${LINUX_RELPATH})"
+            ROOTPREFIX="$(dirname "/boot${LINUX}")"
 
             if [[ $LINUX != $LINUX_RELPATH ]]; then
                 sed -i -e "s,^linux.*,linux ${BOOTPREFIX}${LINUX},g" "${BLS_TARGET}"
                 sed -i -e "s,^initrd.*,initrd ${BOOTPREFIX}${INITRD},g" "${BLS_TARGET}"
             fi
 
-            eval "$(grub2-get-kernel-settings)" || true
+            if [[ "$KERNEL_VERSION" == *\+* ]] && [ "x$GRUB_DEFAULT_TO_DEBUG" != "xtrue" ]; then
+                GRUB_UPDATE_DEFAULT_KERNEL=false
+            fi
+
+            if [ "x$GRUB_UPDATE_DEFAULT_KERNEL" = "xtrue" ]; then
+                NEWDEFAULT="${BLS_ID}"
+            fi
+
             if [ "x$GRUB_LINUX_MAKE_DEBUG" = "xtrue" ]; then
-                ARCH="$(uname -m)"
-                BLS_DEBUG="$(echo ${BLS_TARGET} | sed -e "s/\.${ARCH}/-debug.${ARCH}/")"
+                BLS_DEBUG="$(echo ${BLS_TARGET} | sed -e "s/${KERNEL_VERSION}/${KERNEL_VERSION}~debug/")"
                 cp -aT  "${BLS_TARGET}" "${BLS_DEBUG}"
                 TITLE="$(grep '^title[ \t]' "${BLS_DEBUG}" | sed -e 's/^title[ \t]*//')"
-                BLSID="$(grep '^id[ \t]' "${BLS_DEBUG}" | sed -e "s/\.${ARCH}/-debug.${ARCH}/")"
+                OPTIONS="$(echo "${BOOT_OPTIONS[*]} ${GRUB_CMDLINE_LINUX_DEBUG}" | sed -e 's/\//\\\//g')"
                 sed -i -e "s/^title.*/title ${TITLE}${GRUB_LINUX_DEBUG_TITLE_POSTFIX}/" "${BLS_DEBUG}"
-                sed -i -e "s/^id.*/${BLSID}/" "${BLS_DEBUG}"
-                sed -i -e "s/^options.*/options \$kernelopts ${GRUB_CMDLINE_LINUX_DEBUG}/" "${BLS_DEBUG}"
-	    fi
+                sed -i -e "s/^options.*/options ${OPTIONS}/" "${BLS_DEBUG}"
+                if [ -n "$NEWDEFAULT" -a "x$GRUB_DEFAULT_TO_DEBUG" = "xtrue" ]; then
+                    NEWDEFAULT="${BLS_DEBUG_ID}"
+                fi
+            fi
+            if [ -n "$NEWDEFAULT" ]; then
+                grub2-editenv - set "saved_entry=${NEWDEFAULT}"
+            fi
 
+            # this probably isn't the best place to do this, but it will do for now.
+            if [ -e "${ROOTPREFIX}${INITRD}" -a -e "${ROOTPREFIX}${LINUX}" -a \
+                 "${ROOTPREFIX}${INITRD}" -ot "${ROOTPREFIX}${LINUX}" -a \
+                 -x /usr/lib/kernel/install.d/50-dracut.install ]; then
+                rm -f "${ROOTPREFIX}${INITRD}"
+            fi
             exit 0
         fi
 
@@ -120,9 +154,8 @@ case "$COMMAND" in
     remove)
 
         if [[ "x${GRUB_ENABLE_BLSCFG}" = "xtrue" ]] || [[ ! -f /sbin/new-kernel-pkg ]]; then
-            ARCH="$(uname -m)"
             BLS_TARGET="${BLS_DIR}/${MACHINE_ID}-${KERNEL_VERSION}.conf"
-            BLS_DEBUG="$(echo ${BLS_TARGET} | sed -e "s/\.${ARCH}/-debug.${ARCH}/")"
+            BLS_DEBUG="$(echo ${BLS_TARGET} | sed -e "s/${KERNEL_VERSION}/${KERNEL_VERSION}~debug/")"
             rm -f "${BLS_TARGET}" "${BLS_DEBUG}"
 
             for i in vmlinuz System.map config zImage.stub dtb; do

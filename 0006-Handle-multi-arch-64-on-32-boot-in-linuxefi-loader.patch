@@ -1,19 +1,19 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From 6290701c8bd7183fef478afd5c27053bf9691639 Mon Sep 17 00:00:00 2001
 From: Peter Jones <pjones@redhat.com>
-Date: Tue, 14 Feb 2017 16:18:54 -0500
-Subject: [PATCH] Handle multi-arch (64-on-32) boot in linuxefi loader.
+Date: Mon, 8 Jul 2019 12:32:37 +0200
+Subject: [PATCH 006/220] Handle multi-arch (64-on-32) boot in linuxefi loader.
 
 Allow booting 64-bit kernels on 32-bit EFI on x86.
 
 Signed-off-by: Peter Jones <pjones@redhat.com>
 ---
- grub-core/loader/efi/linux.c      |   9 +++-
- grub-core/loader/i386/efi/linux.c | 110 ++++++++++++++++++++++++++------------
+ grub-core/loader/efi/linux.c      |   9 ++-
+ grub-core/loader/i386/efi/linux.c | 114 ++++++++++++++++++++++++++------------
  include/grub/i386/linux.h         |   7 ++-
- 3 files changed, 89 insertions(+), 37 deletions(-)
+ 3 files changed, 91 insertions(+), 39 deletions(-)
 
 diff --git a/grub-core/loader/efi/linux.c b/grub-core/loader/efi/linux.c
-index c8ecce6dfd0..0622dfa48d4 100644
+index c8ecce6..0622dfa 100644
 --- a/grub-core/loader/efi/linux.c
 +++ b/grub-core/loader/efi/linux.c
 @@ -69,12 +69,17 @@ grub_linuxefi_secure_validate (void *data, grub_uint32_t size)
@@ -37,7 +37,7 @@ index c8ecce6dfd0..0622dfa48d4 100644
  
    return GRUB_ERR_BUG;
 diff --git a/grub-core/loader/i386/efi/linux.c b/grub-core/loader/i386/efi/linux.c
-index 8db228c5bf5..800c3e54022 100644
+index 6b24cbb..3017d0f 100644
 --- a/grub-core/loader/i386/efi/linux.c
 +++ b/grub-core/loader/i386/efi/linux.c
 @@ -44,14 +44,10 @@ static char *linux_cmdline;
@@ -57,12 +57,12 @@ index 8db228c5bf5..800c3e54022 100644
  			      params);
  }
  
-@@ -154,14 +150,20 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
+@@ -153,14 +149,20 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
    return grub_errno;
  }
  
 +#define MIN(a, b) \
-+  ({ typeof (a) _a = (a); \
++  ({ typeof (a) _a = (a);  \
 +     typeof (b) _b = (b); \
 +     _a < _b ? _a : _b; })
 +
@@ -71,7 +71,7 @@ index 8db228c5bf5..800c3e54022 100644
  		int argc, char *argv[])
  {
    grub_file_t file = 0;
--  struct linux_kernel_header lh;
+-  struct linux_i386_kernel_header lh;
 -  grub_ssize_t len, start, filelen;
 +  struct linux_i386_kernel_header *lh = NULL;
 +  grub_ssize_t start, filelen;
@@ -80,7 +80,7 @@ index 8db228c5bf5..800c3e54022 100644
    int rc;
  
    grub_dl_ref (my_mod);
-@@ -201,48 +203,79 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
+@@ -200,48 +202,79 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
        goto fail;
      }
  
@@ -95,14 +95,16 @@ index 8db228c5bf5..800c3e54022 100644
      }
  
 -  grub_dprintf ("linux", "params = %lx\n", (unsigned long) params);
-+  grub_dprintf ("linux", "params = %p\n", params);
- 
+-
 -  grub_memset (params, 0, 16384);
-+  grub_memset (params, 0, sizeof(*params));
- 
+-
 -  grub_memcpy (&lh, kernel, sizeof (lh));
 -
 -  if (lh.boot_flag != grub_cpu_to_le16 (0xaa55))
++  grub_dprintf ("linux", "params = %p\n", params);
++
++  grub_memset (params, 0, sizeof(*params));
++
 +  setup_header_end_offset = *((grub_uint8_t *)kernel + 0x201);
 +  grub_dprintf ("linux", "copying %lu bytes from %p to %p\n",
 +		MIN((grub_size_t)0x202+setup_header_end_offset,
@@ -172,12 +174,13 @@ index 8db228c5bf5..800c3e54022 100644
    if (!linux_cmdline)
      {
        grub_error (GRUB_ERR_OUT_OF_MEMORY, N_("can't allocate cmdline"));
-@@ -255,21 +288,23 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
+@@ -254,22 +287,24 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
    grub_memcpy (linux_cmdline, LINUX_IMAGE, sizeof (LINUX_IMAGE));
    grub_create_loader_cmdline (argc, argv,
                                linux_cmdline + sizeof (LINUX_IMAGE) - 1,
--			      lh.cmdline_size - (sizeof (LINUX_IMAGE) - 1));
-+			      lh->cmdline_size - (sizeof (LINUX_IMAGE) - 1));
+-			      lh.cmdline_size - (sizeof (LINUX_IMAGE) - 1),
++			      lh->cmdline_size - (sizeof (LINUX_IMAGE) - 1),
+ 			      GRUB_VERIFY_KERNEL_CMDLINE);
  
 -  lh.cmd_line_ptr = (grub_uint32_t)(grub_addr_t)linux_cmdline;
 +  grub_dprintf ("linux", "cmdline:%s\n", linux_cmdline);
@@ -215,15 +218,15 @@ index 8db228c5bf5..800c3e54022 100644
    loaded=1;
 +  grub_dprintf ("linux", "setting lh->code32_start to %p\n", kernel_mem);
 +  lh->code32_start = (grub_uint32_t)(grub_addr_t) kernel_mem;
++
++  grub_memcpy (kernel_mem, (char *)kernel + start, filelen - start);
  
 -  lh.code32_start = (grub_uint32_t)(grub_uint64_t) kernel_mem;
 -  grub_memcpy (params, &lh, 2 * 512);
-+  grub_memcpy (kernel_mem, (char *)kernel + start, filelen - start);
- 
--  params->type_of_loader = 0x21;
 +  grub_dprintf ("linux", "setting lh->type_of_loader\n");
 +  lh->type_of_loader = 0x6;
-+
+ 
+-  params->type_of_loader = 0x21;
 +  grub_dprintf ("linux", "setting lh->ext_loader_{type,ver}\n");
 +  params->ext_loader_type = 0;
 +  params->ext_loader_ver = 2;
@@ -244,10 +247,10 @@ index 8db228c5bf5..800c3e54022 100644
    if (kernel_mem && !loaded)
      grub_efi_free_pages ((grub_efi_physical_address_t)(grub_addr_t)kernel_mem,
 diff --git a/include/grub/i386/linux.h b/include/grub/i386/linux.h
-index bb19dbd5a77..8474a857ed2 100644
+index ce30e7f..a093679 100644
 --- a/include/grub/i386/linux.h
 +++ b/include/grub/i386/linux.h
-@@ -133,7 +133,12 @@ struct linux_i386_kernel_header
+@@ -136,7 +136,12 @@ struct linux_i386_kernel_header
    grub_uint32_t kernel_alignment;
    grub_uint8_t relocatable;
    grub_uint8_t min_alignment;
@@ -261,3 +264,6 @@ index bb19dbd5a77..8474a857ed2 100644
    grub_uint32_t cmdline_size;
    grub_uint32_t hardware_subarch;
    grub_uint64_t hardware_subarch_data;
+-- 
+1.8.3.1
+
