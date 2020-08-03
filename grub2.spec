@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	1
+Release:	2
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -392,3 +392,55 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Mon Aug 3 2020 hanzhijun <hanzhijun1@huawei.com> - 2.04-2
+- add CPPFLAGS
+
+* Mon Aug 1 2020 hanzhijun <hanzhijun1@huawei.com> - 2.04-1
+- update to 2.0.4 
+ 
+* Fri July 17 2020 chenyaqiang <chenyaqiang@huawei.com> - 2.02-75
+- remove repeated buildrequest packge “rpm-devel” in grub2.spec
+
+* Fri Apr 24 2020 fengtao <fengtao40@huawei.com> - 2.02-74
+- exclude two cmd in grub2-tools
+
+* Wed Mar 3 2020 songnannan <songnannan2@huawei.com> - 2.02-73
+- delete java-1.8.0-openjdk in buildrequires
+
+* Thu Feb 20 2020 openEuler Buildteam <buildteam@openeuler.org> - 2.02-72
+- Type:bugfix
+- Id:NA
+- SUG:NA
+- DESC:add make check function
+
+* Sat Dec 21 2019 openEuler Buildteam <buildteam@openeuler.org> - 2.02-71
+- Type:cves
+- Id:NA
+- SUG:NA
+- DESC:add cve patches
+
+* Tue Dec 10 2019 openEuler Buildteam <buildteam@openeuler.org> - 2.02-70
+- Type:bugfix
+- Id:NA
+- SUG:NA
+- DESC:add the path for themes
+
+* Tue Dec 3 2019 openEuler Buildteam <buildteam@openeuler.org> - 2.02-69- Type:bugfix
+- Id:NA
+- SUG:NA
+- DESC:add config_for_secure file for gcc_secure
+
+* Sat Sep 28 2019 openEuler Buildteam <buildteam@openeuler.org> - 2.02-68
+- Type:bugfix
+- Id:NA
+- SUG:NA
+- DESC:rename the 20-grub.install file to 20-grubby.install
+
+* Wed Sep 25 2019 openEuler Buildteam <buildteam@openeuler.org> - 2.02-67
+- Type:bugfix
+- ID:NA
+- SUG:restart
+- DESC:fix grub2-setpassword error for openeuler
+
+* Wed Sep 18 2019 openEuler Buildteam <buildteam@openeuler.org> - 2.02-66
+- Package init
