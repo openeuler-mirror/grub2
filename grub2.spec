@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	2
+Release:	3
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -392,13 +392,19 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Fri Aug 7 2020 hanzhijun <hanzhijun1@huawei.com> - 2.04-3
+- Type:cves
+- Id:CVE-2020-10713 CVE-2020-14308 CVE-2020-14309 CVE-2020-14310 CVE-2020-14311 CVE-2020-15705 CVE-2020-15706 CVE-2020-15707
+- SUG:NA
+- DESC:fix CVE-2020-10713 CVE-2020-14308 CVE-2020-14309 CVE-2020-14310 CVE-2020-14311 CVE-2020-15705 CVE-2020-15706 CVE-2020-15707
+
 * Mon Aug 3 2020 hanzhijun <hanzhijun1@huawei.com> - 2.04-2
 - add CPPFLAGS
 
-* Mon Aug 1 2020 hanzhijun <hanzhijun1@huawei.com> - 2.04-1
+* Sat Aug 1 2020 hanzhijun <hanzhijun1@huawei.com> - 2.04-1
 - update to 2.0.4 
  
-* Fri July 17 2020 chenyaqiang <chenyaqiang@huawei.com> - 2.02-75
+* Fri Jul 17 2020 chenyaqiang <chenyaqiang@huawei.com> - 2.02-75
 - remove repeated buildrequest packge “rpm-devel” in grub2.spec
 
 * Fri Apr 24 2020 fengtao <fengtao40@huawei.com> - 2.02-74
