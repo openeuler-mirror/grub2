@@ -252,6 +252,13 @@ Patch6009: osdep-freebsd-Fix-partition-calculation-for-EBR-entr.patch
 Patch6010: 0001-CVE-2019-14865.patch
 Patch6011: 0002-CVE-2019-14865.patch
 Patch6012: 0001-yylex-Make-lexer-fatal-errors-actually-be-fatal.patch
+Patch6013: 0001-safemath-Add-some-arithmetic-primitives-that-check-f.patch
+Patch6014: 0002-calloc-Make-sure-we-always-have-an-overflow-checking.patch
+Patch6015: 0003-calloc-Use-calloc-at-most-places.patch
+Patch6016: 0004-malloc-Use-overflow-checking-primitives-where-we-do-.patch
+Patch6017: 0005-script-Avoid-a-use-after-free-when-redefining-a-func.patch
+Patch6018: 0006-linux-Fix-integer-overflows-in-initrd-size-handling.patch
+Patch6019: 0007-linuxefi-fail-kernel-validation-without-shim-protoco.patch
 Patch9000: 0001-fix-grub-search-configfile-failed-in-net.patch
 Patch9001: Workaround-for-EFI-Bug-Plan3.patch
 Patch9002: revert-0067-Be-more-aggro.patch
