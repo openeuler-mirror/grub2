@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.02
-Release:	76
+Release:	77
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -361,6 +361,12 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Mon Aug 10 2020 hanzhijun <hanzhijun1@huawei.com> - 2.02-77
+- Type:cves
+- Id:CVE-2020-14308 CVE-2020-14309 CVE-2020-14310 CVE-2020-14311 CVE-2020-15706 CVE-2020-15707
+- SUG:NA
+- DESC:fix CVE-2020-14308 CVE-2020-14309 CVE-2020-14310 CVE-2020-14311 CVE-2020-15706 CVE-2020-15707
+
 * Fri Jul 31 2020 openEuler Buildteam <buildteam@openeuler.org> - 2.02-76
 - Type:cves
 - Id:CVE-2020-10713
