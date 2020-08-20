@@ -27,7 +27,7 @@ Source12:       installkernel.in
 %include %{SOURCE2}
 
 BuildRequires:  gcc efi-srpm-macros flex bison binutils python3 ncurses-devel xz-devel
-BuildRequires:  freetype-devel libusb-devel bzip2-devel rpm-devel rpm-devel rpm-libs
+BuildRequires:  freetype-devel libusb-devel bzip2-devel rpm-devel rpm-libs
 BuildRequires:  autoconf automake autogen device-mapper-devel freetype-devel git
 BuildRequires:  texinfo gettext-devel dejavu-sans-fonts help2man systemd
 
