@@ -1,7 +1,7 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From 11d400b4b4f1475cf1a75e7f216524a903e7df7c Mon Sep 17 00:00:00 2001
 From: Peter Jones <pjones@redhat.com>
 Date: Wed, 3 Apr 2013 14:35:34 -0400
-Subject: [PATCH] Move bash completion script (#922997)
+Subject: [PATCH 012/220] Move bash completion script (#922997)
 
 Apparently these go in a new place now.
 ---
@@ -10,10 +10,10 @@ Apparently these go in a new place now.
  2 files changed, 11 insertions(+), 1 deletion(-)
 
 diff --git a/configure.ac b/configure.ac
-index c7888e40f66..783118ccdcd 100644
+index 7656f24..d283af6 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -289,6 +289,14 @@ AC_SUBST(grubdirname)
+@@ -305,6 +305,14 @@ AC_SUBST(grubdirname)
  AC_DEFINE_UNQUOTED(GRUB_DIR_NAME, "$grubdirname",
      [Default grub directory name])
  
@@ -28,7 +28,7 @@ index c7888e40f66..783118ccdcd 100644
  #
  # Checks for build programs.
  #
-@@ -498,6 +506,9 @@ HOST_CFLAGS="$HOST_CFLAGS $grub_cv_cc_w_extra_flags"
+@@ -516,6 +524,9 @@ HOST_CFLAGS="$HOST_CFLAGS $grub_cv_cc_w_extra_flags"
  # Check for target programs.
  #
  
@@ -39,7 +39,7 @@ index c7888e40f66..783118ccdcd 100644
  if test "x$target_alias" != x && test "x$host_alias" != "x$target_alias"; then
    tmp_ac_tool_prefix="$ac_tool_prefix"
 diff --git a/util/bash-completion.d/Makefile.am b/util/bash-completion.d/Makefile.am
-index 136287cf1bf..61108f05429 100644
+index 136287c..61108f0 100644
 --- a/util/bash-completion.d/Makefile.am
 +++ b/util/bash-completion.d/Makefile.am
 @@ -6,7 +6,6 @@ EXTRA_DIST = $(bash_completion_source)
@@ -50,3 +50,6 @@ index 136287cf1bf..61108f05429 100644
  bashcompletion_DATA = $(bash_completion_script)
  
  $(bash_completion_script): $(bash_completion_source) $(top_builddir)/config.status
+-- 
+1.8.3.1
+

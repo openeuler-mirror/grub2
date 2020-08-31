@@ -1,0 +1,163 @@
+From 9140d0e92dc51839ff77634d4b030bf4f88f248a Mon Sep 17 00:00:00 2001
+From: Javier Martinez Canillas <javierm@redhat.com>
+Date: Wed, 13 May 2020 19:40:10 +0200
+Subject: [PATCH 209/220] 10_linux.in: Store cmdline in BLS snippets instead of
+ using a variable
+
+The kernel cmdline was stored as a kernelopts variable in the grubenv file
+and the BLS snippets used that. But this turned out to be fragile since the
+grubenv file could be removed or get corrupted easily.
+
+To prevent the entries to not have a cmdline if the grubenv can't be read,
+a fallback variable was set in the GRUB config file. But this still caused
+issues since the config needs to be re-generated to change the parameters.
+
+Instead, let's store the cmdline in the BLS snippets. This will make the
+configuration more robust, since it will work even without the grubenv
+file and the BLS entries will contain all the information needed to boot.
+
+Signed-off-by: Javier Martinez Canillas <javierm@redhat.com>
+---
+ util/grub-switch-to-blscfg.in | 30 ++++++++++--------------------
+ util/grub.d/10_linux.in       | 41 +++++++++++++++++++++++++++++++----------
+ 2 files changed, 41 insertions(+), 30 deletions(-)
+
+diff --git a/util/grub-switch-to-blscfg.in b/util/grub-switch-to-blscfg.in
+index 3333a62..cb22912 100644
+--- a/util/grub-switch-to-blscfg.in
++++ b/util/grub-switch-to-blscfg.in
+@@ -190,7 +190,7 @@ fi
+ mkbls() {
+     local kernelver=$1 && shift
+     local datetime=$1 && shift
+-    local bootprefix=$1 && shift
++    local kernelopts=$1 && shift
+ 
+     local debugname=""
+     local debugid=""
+@@ -209,10 +209,9 @@ mkbls() {
+         cat <<EOF
+ title ${NAME} (${kernelver}) ${VERSION}${debugname}
+ version ${kernelver}${debugid}
+-linux ${bootprefix}/vmlinuz-${kernelver}
+-initrd ${bootprefix}/initramfs-${kernelver}.img
+-options \$kernelopts
+-id ${ID}-${datetime}-${kernelver}
++linux /vmlinuz-${kernelver}
++initrd /initramfs-${kernelver}.img
++options ${kernelopts}
+ grub_users \$grub_users
+ grub_arg --unrestricted
+ grub_class kernel${flavor}
+@@ -236,28 +235,19 @@ copy_bls() {
+ 
+ 	linux_relpath="$("${grub_mkrelpath}" "${linux_path}")"
+ 	bootprefix="${linux_relpath%%"${linux}"}"
++	cmdline="root=${LINUX_ROOT_DEVICE} ro ${GRUB_CMDLINE_LINUX} ${GRUB_CMDLINE_LINUX_DEFAULT}"
+ 
+-	if [ -f "${kernel_dir}/bls.conf" ] ; then
+-            cp -af "${kernel_dir}/bls.conf" "${bls_target}"
+-            if [ -n "${bootprefix}" ]; then
+-		sed -i -e "s,^\(linux[^ \t]*[ \t]\+\).*,\1${bootprefix}${linux},g" "${bls_target}"
+-		sed -i -e "/^initrd/ s,\([ \t]\+\)\([^ \t]\+\),\1${bootprefix}\2,g" "${bls_target}"
+-            fi
+-	else
+-            mkbls "${kernelver}" \
+-		  "$(date -u +%Y%m%d%H%M%S -d "$(stat -c '%y' "${kernel_dir}")")" \
+-		  "${bootprefix}" \
+-		  >"${bls_target}"
+-	fi
++	mkbls "${kernelver}" \
++	      "$(date -u +%Y%m%d%H%M%S -d "$(stat -c '%y' "${kernel_dir}")")" \
++	      "${bootprefix}" "${cmdline}" >"${bls_target}"
+ 
+ 	if [ "x$GRUB_LINUX_MAKE_DEBUG" = "xtrue" ]; then
+             bls_debug="$(echo ${bls_target} | sed -e "s/${kernelver}/${kernelver}~debug/")"
+             cp -aT  "${bls_target}" "${bls_debug}"
+             title="$(grep '^title[ \t]' "${bls_debug}" | sed -e 's/^title[ \t]*//')"
+-            blsid="$(grep '^id[ \t]' "${bls_debug}" | sed -e "s/\.${ARCH}/-debug.${arch}/")"
++            options="$(echo "${cmdline} ${GRUB_CMDLINE_LINUX_DEBUG}" | sed -e 's/\//\\\//g')"
+             sed -i -e "s/^title.*/title ${title}${GRUB_LINUX_DEBUG_TITLE_POSTFIX}/" "${bls_debug}"
+-            sed -i -e "s/^id.*/${blsid}/" "${bls_debug}"
+-            sed -i -e "s/^options.*/options \$kernelopts ${GRUB_CMDLINE_LINUX_DEBUG}/" "${bls_debug}"
++            sed -i -e "s/^options.*/options ${options}/" "${bls_debug}"
+ 	fi
+     done
+ 
+diff --git a/util/grub.d/10_linux.in b/util/grub.d/10_linux.in
+index 09adfce..80299ec 100644
+--- a/util/grub.d/10_linux.in
++++ b/util/grub.d/10_linux.in
+@@ -134,23 +134,43 @@ read_config()
+     done < ${config_file}
+ }
+ 
+-populate_menu()
++blsdir="/boot/loader/entries"
++
++get_sorted_bls()
+ {
+-    blsdir="/boot/loader/entries"
+-    local -a files
+     local IFS=$'\n'
+-    gettext_printf "Generating boot entries from BLS files...\n" >&2
+ 
+-    files=($(for bls in ${blsdir}/*.conf ; do
+-        if ! [[ -e "${bls}" ]] ; then
+-            continue
+-        fi
++    files=($(for bls in ${blsdir}/*.conf; do
+         bls="${bls%.conf}"
+         bls="${bls##*/}"
+         echo "${bls}"
+     done | ${kernel_sort} | tac)) || :
+ 
+-    for bls in "${files[@]}" ; do
++    echo "${files[@]}"
++}
++
++update_bls_cmdline()
++{
++    local cmdline="root=${LINUX_ROOT_DEVICE} ro ${GRUB_CMDLINE_LINUX} ${GRUB_CMDLINE_LINUX_DEFAULT}"
++    local -a files=($(get_sorted_bls))
++
++    for bls in "${files[@]}"; do
++        local options="${cmdline}"
++        if [ -z "${bls##*debug*}" ]; then
++            options="${options} ${GRUB_CMDLINE_LINUX_DEBUG}"
++        fi
++        options="$(echo "${options}" | sed -e 's/\//\\\//g')"
++        sed -i -e "s/^options.*/options ${options}/" "${blsdir}/${bls}.conf"
++    done
++}
++
++populate_menu()
++{
++    local -a files=($(get_sorted_bls))
++
++    gettext_printf "Generating boot entries from BLS files...\n" >&2
++
++    for bls in "${files[@]}"; do
+         read_config "${blsdir}/${bls}.conf"
+ 
+         menu="${menu}menuentry '${title}' ${grub_arg} --id=${bls} {\n"
+@@ -224,6 +244,8 @@ if [ -z "\${kernelopts}" ]; then
+ fi
+ EOF
+ 
++  update_bls_cmdline
++
+   if [ "x${BLS_POPULATE_MENU}" = "xtrue" ]; then
+       populate_menu
+   else
+@@ -244,7 +266,6 @@ EOF
+           fi
+       fi
+ 
+-      ${grub_editenv} - set kernelopts="root=${LINUX_ROOT_DEVICE} ro ${GRUB_CMDLINE_LINUX} ${GRUB_CMDLINE_LINUX_DEFAULT}"
+       if [ -n "${GRUB_EARLY_INITRD_LINUX_CUSTOM}" ]; then
+           ${grub_editenv} - set early_initrd="${GRUB_EARLY_INITRD_LINUX_CUSTOM}"
+       fi
+-- 
+1.8.3.1
+
