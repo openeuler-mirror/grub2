@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	3
+Release:	4
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -392,6 +392,9 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Tue Sep 1 2020 hanzhijun <hanzhijun1@huawei.com> - 2.04-4
+- remove 08_fallback_counting.in apply grubby 
+
 * Fri Aug 7 2020 hanzhijun <hanzhijun1@huawei.com> - 2.04-3
 - Type:cves
 - Id:CVE-2020-10713 CVE-2020-14308 CVE-2020-14309 CVE-2020-14310 CVE-2020-14311 CVE-2020-15705 CVE-2020-15706 CVE-2020-15707
