@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	3
+Release:	4
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -72,11 +72,28 @@ Requires:   grub2-common = %{epoch}:%{version}-%{release}
 Requires:   gettext os-prober which file
 Requires(pre):  dracut
 Requires(post): dracut
-Provides:       grub2-tools-minimal grub2-tools-extra
-Obsoletes:      grub2-tools-minimal grub2-tools-extra
 
 %description    tools
 tools package for grub2.
+
+%package     tools-minimal
+Summary:     Support tools for GRUB.
+Requires:    gettext %{name}-common = %{epoch}:%{version}-%{release}
+Obsoletes:   grub2-tools < %{evr}
+
+%description tools-minimal
+Support tools for GRUB.
+
+%package     tools-extra
+Summary:     Support tools for GRUB.
+Requires:    gettext os-prober which file
+Requires:    %{name}-tools-minimal = %{epoch}:%{version}-%{release}
+Requires:    %{name}-common = %{epoch}:%{version}-%{release}
+Obsoletes:   grub2-tools < %{evr}
+
+%description tools-extra
+Support tools for GRUB.
+
 
 %ifarch x86_64
 %package        tools-efi
@@ -326,17 +343,28 @@ rm -r /boot/grub2.tmp/ || :
 
 %files tools
 %defattr(-,root,root)
-%{_sbindir}/grub2-*
+%{_sbindir}/%{name}-mkconfig
 %exclude %{_sbindir}/grub2-set-bootflag
-%attr(4755, root, root) %{_sbindir}/grub2-set-bootflag
-%{_bindir}/grub2-*
-%exclude %{_sbindir}/%{name}-macbless
-%exclude %{_bindir}/%{name}-render-label
+%{_sbindir}/%{name}-switch-to-blscfg
+%{_sbindir}/%{name}-rpm-sort
+%{_sbindir}/%{name}-reboot
+%{_sbindir}/%{name}-install
+%{_sbindir}/%{name}-sparc64-setup
+%{_sbindir}/%{name}-ofpathname
+%{_sbindir}/%{name}-probe
+%{_bindir}/%{name}-glue-efi
+%{_bindir}/%{name}-file
+%{_bindir}/%{name}-menulst2cfg
+%{_bindir}/%{name}-mkimage
+%{_bindir}/%{name}-mkrelpath
+%{_bindir}/%{name}-script-check
+%{_bindir}/%{name}-emu
+%{_bindir}/%{name}-emu-lite
+
 %config %{_sysconfdir}/grub.d/??_*
 %exclude %{_sysconfdir}/grub.d/01_fallback_counting
 %attr(0644,root,root) %ghost %config(noreplace) %{_sysconfdir}/default/grub
 %{_sysconfdir}/grub.d/README
-%{_sysconfdir}/sysconfig/grub
 %{_sysconfdir}/prelink.conf.d/grub2.conf
 %{_userunitdir}/*
 %{_unitdir}/*
@@ -346,16 +374,45 @@ rm -r /boot/grub2.tmp/ || :
 %exclude %{_datarootdir}/grub/*.h
 %{_infodir}/%{name}*
 
+
 %if %{with_legacy_arch}
 %{_sbindir}/grub2-install
+%ifarch x86_64
+%{_sbindir}/%{name}-bios-setup
+%else
+%exclude %{_sbindir}/%{name}-bios-setup
+%endif
 %ifarch %{sparc}
 %{_sbindir}/grub2-sparc64-setup
+%{_sbindir}/%{name}-ofpathname
 %else
 %exclude %{_sbindir}/grub2-sparc64-setup
+%exclude %{_sbindir}/%{name}-ofpathname
 %endif
 %exclude %{_sbindir}/grub2-ofpathname
 %endif
 
+
+%files tools-minimal
+%defattr(-,root,root)
+%{_sysconfdir}/prelink.conf.d/grub2.conf
+%attr(4755, root, root) %{_sbindir}/%{name}-set-bootflag
+%{_sbindir}/%{name}-get-kernel-settings
+%{_sbindir}/%{name}-set*password
+%{_sbindir}/%{name}-set-default
+%{_bindir}/%{name}-editenv
+%{_bindir}/%{name}-mkpasswd-pbkdf2
+
+%files tools-extra
+%defattr(-,root,root)
+%{_sysconfdir}/sysconfig/grub
+%{_bindir}/%{name}-fstest
+%{_bindir}/%{name}-kbdcomp
+%{_bindir}/%{name}-mkfont
+%{_bindir}/%{name}-mklayout
+%{_bindir}/%{name}-mknetdir
+%{_bindir}/%{name}-mkstandalone
+%{_bindir}/%{name}-syslinux2cfg
 %ifnarch %{sparc}
 %{_bindir}/grub2-mkrescue
 %endif
@@ -392,6 +449,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Thu Oct 29 2020 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-4
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:split tools-extra and tools-minimal from tools
+
 * Fri Aug 7 2020 hanzhijun <hanzhijun1@huawei.com> - 2.04-3
 - Type:cves
 - Id:CVE-2020-10713 CVE-2020-14308 CVE-2020-14309 CVE-2020-14310 CVE-2020-14311 CVE-2020-15705 CVE-2020-15706 CVE-2020-15707
