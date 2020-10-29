@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	4
+Release:	5
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -358,8 +358,6 @@ rm -r /boot/grub2.tmp/ || :
 %{_bindir}/%{name}-mkimage
 %{_bindir}/%{name}-mkrelpath
 %{_bindir}/%{name}-script-check
-%{_bindir}/%{name}-emu
-%{_bindir}/%{name}-emu-lite
 
 %config %{_sysconfdir}/grub.d/??_*
 %exclude %{_sysconfdir}/grub.d/01_fallback_counting
@@ -449,6 +447,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Thu Oct 29 2020 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-5
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:remove grub2-emu and grub2-emu-lite in grub2-tools
+
 * Thu Oct 29 2020 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-4
 - Type:bugfix
 - ID:NA
