@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	4
+Release:	5
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -27,7 +27,7 @@ Source12:       installkernel.in
 %include %{SOURCE2}
 
 BuildRequires:  gcc efi-srpm-macros flex bison binutils python3 ncurses-devel xz-devel
-BuildRequires:  freetype-devel libusb-devel bzip2-devel rpm-devel rpm-devel rpm-libs
+BuildRequires:  freetype-devel libusb-devel bzip2-devel rpm-devel rpm-libs
 BuildRequires:  autoconf automake autogen device-mapper-devel freetype-devel git
 BuildRequires:  texinfo gettext-devel dejavu-sans-fonts help2man systemd
 
@@ -392,6 +392,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Fri Nov 20 2020 quanhongfei <quanhongfei@huawei.com> - 2.04-5
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:remove duplicate rpm-devel in Buildrequires
+
 * Tue Sep 1 2020 hanzhijun <hanzhijun1@huawei.com> - 2.04-4
 - remove 08_fallback_counting.in apply grubby 
 
