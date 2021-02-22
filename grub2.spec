@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	7
+Release:	8
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -301,8 +301,9 @@ fi
 %posttrans tools
 
 if [ -f /etc/default/grub ]; then
-    ! grep -q '^GRUB_ENABLE_BLSCFG=.*' /etc/default/grub && \
-      /sbin/grub2-switch-to-blscfg --backup-suffix=.rpmsave &>/dev/null || :
+    if grep -q '^GRUB_ENABLE_BLSCFG=.*' /etc/default/grub; then
+      sed -i '/GRUB_ENABLE_BLSCFG=/d' /etc/default/grub
+    fi
 fi
 
 %triggerun -- grub2 < 1:1.99-4
@@ -447,6 +448,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Mon Feb 22 2021 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-8
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:fix kernel not found because grub.cfg using BLS format
+
 * Mon Nov 16 2020 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-7
 - Type:bugfix
 - ID:NA
