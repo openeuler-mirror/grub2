@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	3
+Release:	8
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -284,8 +284,9 @@ fi
 %posttrans tools
 
 if [ -f /etc/default/grub ]; then
-    ! grep -q '^GRUB_ENABLE_BLSCFG=.*' /etc/default/grub && \
-      /sbin/grub2-switch-to-blscfg --backup-suffix=.rpmsave &>/dev/null || :
+    if grep -q '^GRUB_ENABLE_BLSCFG=.*' /etc/default/grub; then
+      sed -i '/GRUB_ENABLE_BLSCFG=/d' /etc/default/grub
+    fi
 fi
 
 %triggerun -- grub2 < 1:1.99-4
@@ -392,6 +393,36 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Mon Feb 22 2021 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-8
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:fix kernel not found because grub.cfg using BLS format
+
+* Mon Nov 16 2020 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-7
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:remove duplicate rpm-devel in BuildRequires
+
+* Sat Nov 14 2020 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-6
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:remove 08_fallback_counting.in apply grubby
+
+* Thu Oct 29 2020 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-5
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:remove grub2-emu and grub2-emu-lite in grub2-tools
+
+* Thu Oct 29 2020 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-4
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:split tools-extra and tools-minimal from tools
+
 * Fri Aug 7 2020 hanzhijun <hanzhijun1@huawei.com> - 2.04-3
 - Type:cves
 - Id:CVE-2020-10713 CVE-2020-14308 CVE-2020-14309 CVE-2020-14310 CVE-2020-14311 CVE-2020-15705 CVE-2020-15706 CVE-2020-15707
