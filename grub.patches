@@ -248,3 +248,14 @@ Patch0247: 0247-linux-Fix-integer-overflows-in-initrd-size-handling.patch
 Patch0248: 0248-linuxefi-fail-kernel-validation-without-shim-protoco.patch
 Patch0249: 0249-remove-08_fallback_counting.in-apply-grubby.patch
 Patch0250: 0250-tftp-roll-over-block-counter-to-prevent-timeouts-wit.patch
+Patch0251: backport-CVE-2020-25632.patch
+Patch0252: backport-CVE-2020-25647.patch
+Patch0253: backport-0001-CVE-2020-27749.patch
+Patch0254: backport-0002-CVE-2020-27749.patch
+Patch0255: backport-0003-CVE-2020-27749.patch
+Patch0256: backport-0004-CVE-2020-27749.patch
+Patch0257: backport-0005-CVE-2020-27749.patch
+Patch0258: backport-0006-CVE-2020-27749.patch
+Patch0259: backport-0007-CVE-2020-27749.patch
+Patch0260: backport-CVE-2021-20225.patch
+Patch0261: backport-CVE-2021-20233.patch
