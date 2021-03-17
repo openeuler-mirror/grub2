@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	9
+Release:	10
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -448,6 +448,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Fri Mar 12 2021 yanglu <yanglu60@huawei.com> - 2.04-10
+- Type:cves
+- Id:CVE-2020-25632 CVE-2020-25647 CVE-2020-27749 CVE-2021-20225 CVE-2021-20233
+- SUG:NA
+- DESC:fix CVE-2020-25632 CVE-2020-25647 CVE-2020-27749 CVE-2021-20225 CVE-2021-20233
+
 * Sat Feb 27 2021 fengtao <fengtao40@huawei.com> - 2.04-9
 - Type:bugfix
 - ID:NA
