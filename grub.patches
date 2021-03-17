@@ -246,3 +246,5 @@ Patch0245: 0245-efi-Fix-use-after-free-in-halt-reboot-path.patch
 Patch0246: 0246-loader-linux-Avoid-overflow-on-initrd-size-calculati.patch
 Patch0247: 0247-linux-Fix-integer-overflows-in-initrd-size-handling.patch
 Patch0248: 0248-linuxefi-fail-kernel-validation-without-shim-protoco.patch
+Patch0249: 0249-remove-08_fallback_counting.in-apply-grubby.patch
+Patch0250: 0250-tftp-roll-over-block-counter-to-prevent-timeouts-wit.patch
