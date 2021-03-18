@@ -259,3 +259,15 @@ Patch0258: backport-0006-CVE-2020-27749.patch
 Patch0259: backport-0007-CVE-2020-27749.patch
 Patch0260: backport-CVE-2021-20225.patch
 Patch0261: backport-CVE-2021-20233.patch
+Patch0262: backport-0001-CVE-2020-27779-and-CVE-2020-14372.patch
+Patch0263: backport-0002-CVE-2020-27779-and-CVE-2020-14372.patch
+Patch0264: backport-0003-CVE-2020-27779-and-CVE-2020-14372.patch
+Patch0265: backport-0004-CVE-2020-27779-and-CVE-2020-14372.patch
+Patch0266: backport-0005-CVE-2020-27779-and-CVE-2020-14372.patch
+Patch0267: backport-0006-CVE-2020-27779-and-CVE-2020-14372.patch
+Patch0268: backport-0007-CVE-2020-27779-and-CVE-2020-14372.patch
+Patch0269: backport-0008-CVE-2020-27779-and-CVE-2020-14372.patch
+Patch0270: backport-0009-CVE-2020-27779-and-CVE-2020-14372.patch
+Patch0271: backport-0010-CVE-2020-27779-and-CVE-2020-14372.patch
+Patch0272: backport-0011-CVE-2020-27779-and-CVE-2020-14372.patch
+Patch0273: backport-0012-CVE-2020-27779-and-CVE-2020-14372.patch
