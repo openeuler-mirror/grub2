@@ -277,6 +277,8 @@ Requires:	%{name}-common = %{evr}					\
 Requires:	%{name}-tools-minimal >= %{evr}				\
 Requires:	%{name}-tools-extra = %{evr}				\
 Requires:	%{name}-tools = %{evr}					\
+Requires(pre):	%{name}-tools = %{evr}					\
+Requires(postun):	%{name}-tools = %{evr}				\
 Provides:	%{name}-efi = %{evr}					\
 %{?legacy_provides:Provides:	%{name} = %{evr}}			\
 %{-o:Obsoletes:	%{name}-efi < %{evr}}					\
@@ -284,6 +286,19 @@ Provides:	%{name}-efi = %{evr}					\
 %{expand:%%description %{1}}						\
 %{desc}									\
 This subpackage provides support for %{1} systems.			\
+%pre %{1}								\
+res=$(grub2-probe /boot)						\
+if [ "xvfat" != "x$res" -a "xfat" != "x$res" ]; then			\
+	ln -sf ../efi/EFI/%{efi_vendor}/grubenv /boot/grub2/grubenv	\
+fi									\
+									\
+%postun %{1}								\
+if [ "x0" == "x$1" ];then						\
+	res=$(grub2-probe /boot)					\
+	if[ "xvfat" != "x$res" -a "xfat" != "x$res" ];then		\
+        	rm -f /boot/grub2/grubenv				\
+	fi								\
+fi									\
 									\
 %{expand:%%{?!buildsubdir:%%define buildsubdir grub-%{1}-%{tarversion}}}\
 %{expand:%if 0%{?with_efi_modules}					\
