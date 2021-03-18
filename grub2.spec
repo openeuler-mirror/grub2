@@ -7,7 +7,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	11
+Release:	12
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -448,6 +448,13 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Wed Mar 17 2021 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-12
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:fix the installation failure of grub2-efi-x64/grub-efi-aa64 packages on
+       the /boot partition of VFAT file system.
+
 * Tue Mar 62 2021 hanhui <hanhui15@huawei.com> - 2.04-11
 - Type:cves
 - Id:CVE-2020-27779 CVE-2020-14372
