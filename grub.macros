@@ -293,10 +293,10 @@ if [ "xvfat" != "x$res" -a "xfat" != "x$res" ]; then			\
 fi									\
 									\
 %postun %{1}								\
-if [ "x0" == "x$1" ];then						\
+if [ "x0" == "x$1" ]; then						\
 	res=$(grub2-probe /boot)					\
-	if[ "xvfat" != "x$res" -a "xfat" != "x$res" ];then		\
-        	rm -f /boot/grub2/grubenv				\
+	if [ "xvfat" != "x$res" -a "xfat" != "x$res" ]; then		\
+		rm -f /boot/grub2/grubenv				\
 	fi								\
 fi									\
 									\
