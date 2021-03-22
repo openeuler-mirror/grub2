@@ -293,10 +293,10 @@ if [ "xvfat" != "x$res" -a "xfat" != "x$res" ]; then			\
 fi									\
 									\
 %postun %{1}								\
-if [ "x0" == "x$1" ];then						\
+if [ "x0" == "x$1" ]; then						\
 	res=$(grub2-probe /boot)					\
-	if[ "xvfat" != "x$res" -a "xfat" != "x$res" ];then		\
-        	rm -f /boot/grub2/grubenv				\
+	if [ "xvfat" != "x$res" -a "xfat" != "x$res" ]; then		\
+		rm -f /boot/grub2/grubenv				\
 	fi								\
 fi									\
 									\
@@ -387,8 +387,8 @@ done								\
 	-p /EFI/%{efi_vendor} -d grub-core ${GRUB_MODULES}	\
 %{4}./grub-mkimage -O %{1} -o %{3}.orig				\\\
 	-p /EFI/BOOT -d grub-core ${GRUB_MODULES}		\
-install -m 700 %{2}.orig %{2}                                   \
-install -m 700 %{3}.orig %{3}                                   \
+install -m 700 %{2}.orig %{2}					\
+install -m 700 %{3}.orig %{3}					\
 %{nil}
 %else
 %define mkimage()						\
