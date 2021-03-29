@@ -1,13 +1,14 @@
 %undefine _hardened_build
 
 %global tarversion 2.04
+%define efi_vendor %{_vendor}
 %undefine _missing_build_ids_terminate_build
 %global _configure_gnuconfig_hack 0
 
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	13
+Release:	14
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -445,6 +446,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Mon Mar 29 2021 renmingshuai <renmingshuai@huawei.com> - 2.04-14
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:add efi_vendor for vendor
+
 * Sun Mar 21 2021 orange-snn <songnannan2@huawei.com> - 2.04-13
 - fix postun error in grub2-efi-x64
 
