@@ -1,0 +1,34 @@
+From 55453a6734278cf820d599b67c03e84e35e1d87b Mon Sep 17 00:00:00 2001
+From: Colin Watson <cjwatson@ubuntu.com>
+Date: Fri, 23 Aug 2019 12:00:30 +0100
+Subject: [PATCH] grub-mkconfig: Fix typo in --help output
+
+The short form of "--version" that grub-mkconfig accepts is "-V", not "-v".
+
+Fixes Debian bug #935504.
+
+Reference: http://git.savannah.gnu.org/cgit/grub.git/commit/?id=ff3e91be9cc3d6f040a7f47fac0db1c93f80a9a8
+
+Signed-off-by: Colin Watson <cjwatson@ubuntu.com>
+Reviewed-by: Vladimir 'phcoder' Serbinenko <phcoder@gmail.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ util/grub-mkconfig.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/util/grub-mkconfig.in b/util/grub-mkconfig.in
+index 2601bdc..0a2c1ce 100644
+--- a/util/grub-mkconfig.in
++++ b/util/grub-mkconfig.in
+@@ -63,7 +63,7 @@ usage () {
+     print_option_help "-o, --output=$(gettext FILE)" "$(gettext "output generated config to FILE [default=stdout]")"
+     print_option_help "--no-grubenv-update" "$(gettext "do not update variables in the grubenv file")"
+     print_option_help "-h, --help" "$(gettext "print this message and exit")"
+-    print_option_help "-v, --version" "$(gettext "print the version information and exit")"
++    print_option_help "-V, --version" "$(gettext "print the version information and exit")"
+     echo
+     gettext "Report bugs to <bug-grub@gnu.org>."; echo
+ }
+-- 
+2.19.1
+
