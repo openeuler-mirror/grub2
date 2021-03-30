@@ -1,32 +1,56 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From 54e42c1874f75cfe9129e0af0972becc5f9e71f5 Mon Sep 17 00:00:00 2001
 From: Javier Martinez Canillas <javierm@redhat.com>
-Date: Mon, 24 Aug 2020 14:46:27 +0200
-Subject: [PATCH] tftp: roll over block counter to prevent timeouts with data
- packets
+Date: Thu, 10 Sep 2020 17:17:57 +0200
+Subject: [PATCH] tftp: Roll-over block counter to prevent data packets
+ timeouts
 
-The block number is a 16-bit counter which only allows to fetch
-files no bigger than 65535 * blksize. To avoid this limit, the
-counter is rolled over. This behavior isn't defined in RFC 1350
-but is handled by many TFTP servers and it's what GRUB was doing
-before implicitly due an overflow.
+Commit 781b3e5efc3 (tftp: Do not use priority queue) caused a regression
+when fetching files over TFTP whose size is bigger than 65535 * block size.
 
-Fixing that bug led to TFTP timeouts, since GRUB wasn't acking
-data packets anymore for files with size bigger than the maximum
-mentioned above. Restore the old behavior to prevent this issue.
+  grub> linux /images/pxeboot/vmlinuz
+  grub> echo $?
+  0
+  grub> initrd /images/pxeboot/initrd.img
+  error: timeout reading '/images/pxeboot/initrd.img'.
+  grub> echo $?
+  28
 
-Resolves: rhbz#1869335
+It is caused by the block number counter being a 16-bit field, which leads
+to a maximum file size of ((1 << 16) - 1) * block size. Because GRUB sets
+the block size to 1024 octets (by using the TFTP Blocksize Option from RFC
+2348 [0]), the maximum file size that can be transferred is 67107840 bytes.
+
+The TFTP PROTOCOL (REVISION 2) RFC 1350 [1] does not mention what a client
+should do when a file size is bigger than the maximum, but most TFTP hosts
+support the block number counter to be rolled over. That is, acking a data
+packet with a block number of 0 is taken as if the 65356th block was acked.
+
+It was working before because the block counter roll-over was happening due
+an overflow. But that got fixed by the mentioned commit, which led to the
+regression when attempting to fetch files larger than the maximum size.
+
+To allow TFTP file transfers of unlimited size again, re-introduce a block
+counter roll-over so the data packets are acked preventing the timeouts.
+
+[0]: https://tools.ietf.org/html/rfc2348
+[1]: https://tools.ietf.org/html/rfc1350
+
+Fixes: 781b3e5efc3 (tftp: Do not use priority queue)
+
+Reference: http://git.savannah.gnu.org/cgit/grub.git/commit/?id=a6838bbc6726ad624bd2b94991f690b8e9d23c69
 
 Suggested-by: Peter Jones <pjones@redhat.com>
 Signed-off-by: Javier Martinez Canillas <javierm@redhat.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
 ---
- grub-core/net/tftp.c | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
+ grub-core/net/tftp.c | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)
 
 diff --git a/grub-core/net/tftp.c b/grub-core/net/tftp.c
-index 22badd74316..acbb01c10e7 100644
+index c2df3d7..300c5ca 100644
 --- a/grub-core/net/tftp.c
 +++ b/grub-core/net/tftp.c
-@@ -183,8 +183,20 @@ tftp_receive (grub_net_udp_socket_t sock __attribute__ ((unused)),
+@@ -183,11 +183,22 @@ tftp_receive (grub_net_udp_socket_t sock __attribute__ ((unused)),
  	  return GRUB_ERR_NONE;
  	}
  
@@ -35,17 +59,23 @@ index 22badd74316..acbb01c10e7 100644
 +      /*
 +       * Ack old/retransmitted block.
 +       *
-+       * The block number is a 16-bit counter which only allows to fetch
-+       * files no bigger than 65535 * blksize. To avoid this limit, the
-+       * counter is rolled over. This behavior isn't defined in RFC 1350
-+       * but is handled by many TFTP servers and it's what GRUB was doing
-+       * before implicitly due an overflow.
++       * The block number is a 16-bit counter, thus the maximum file size that
++       * could be transfered is 65535 * block size. Most TFTP hosts support to
++       * roll-over the block counter to allow unlimited transfer file size.
 +       *
-+       * Fixing that bug led to TFTP timeouts, since GRUB wasn't acking
-+       * data packets anymore for files with size bigger than the maximum
-+       * mentioned above. Restore the old behavior to prevent this issue.
++       * This behavior is not defined in the RFC 1350 [0] but is implemented by
++       * most TFTP clients and hosts.
++       *
++       * [0]: https://tools.ietf.org/html/rfc1350
 +       */
-+      if (grub_be_to_cpu16 (tftph->u.data.block) < ((data->block + 1) & 0xffffu))
++      if (grub_be_to_cpu16 (tftph->u.data.block) < ((grub_uint16_t) (data->block + 1)))
  	ack (data, grub_be_to_cpu16 (tftph->u.data.block));
        /* Ignore unexpected block. */
-       else if (grub_be_to_cpu16 (tftph->u.data.block) > data->block + 1)
+-      else if (grub_be_to_cpu16 (tftph->u.data.block) > data->block + 1)
++      else if (grub_be_to_cpu16 (tftph->u.data.block) > ((grub_uint16_t) (data->block + 1)))
+ 	grub_dprintf ("tftp", "TFTP unexpected block # %d\n", tftph->u.data.block);
+       else
+ 	{
+-- 
+2.19.1
+

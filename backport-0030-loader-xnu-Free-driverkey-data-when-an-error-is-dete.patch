@@ -1,9 +1,17 @@
 From 0699bb82f8c260161ff11cf28024c7e25f0a5dd5 Mon Sep 17 00:00:00 2001
-From: Fedora Ninjas <grub2-owner@fedoraproject.org>
-Date: Thu, 25 Mar 2021 03:58:28 -0400
+From: Marco A Benatto <mbenatto@redhat.com>
+Date: Mon, 30 Nov 2020 12:18:24 -0300
 Subject: [PATCH] loader/xnu: Free driverkey data when an error is detected in
  grub_xnu_writetree_toheap()
 
+... to avoid memory leaks.
+
+Fixes: CID 96640
+
+Reference: http://git.savannah.gnu.org/cgit/grub.git/commit/?id=4b4027b6b1c877d7ab467896b04c7bd1aadcfa15
+
+Signed-off-by: Marco A Benatto <mbenatto@redhat.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
 ---
  grub-core/loader/xnu.c | 24 ++++++++++++++++++++----
  1 file changed, 20 insertions(+), 4 deletions(-)
