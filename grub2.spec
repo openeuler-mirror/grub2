@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	14
+Release:	15
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -449,8 +449,18 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
-* Mon Mar 22 2021 zhujunhao <zhujunhao8@huawei.com> - 2.04-14
-- add efi_vendor for vendor
+* Mon Mar 29 2021 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-15
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:backport the patches that upstream community released on
+       March 2, 2021
+
+* Mon Mar 29 2021 renmingshuai <renmingshuai@huawei.com> - 2.04-14
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:add efi_vendor for vendor
 
 * Sun Mar 21 2021 orange-snn <songnannan2@huawei.com> - 2.04-13
 - fix postun error in grub2-efi-x64
