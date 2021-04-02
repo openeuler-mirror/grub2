@@ -1,5 +1,5 @@
 From d172ca13c6fdf9a3daf1539eec9fd6b3a17dc16b Mon Sep 17 00:00:00 2001
-From: Fedora Ninjas <grub2-owner@fedoraproject.org>
+From: Chris Coulson <chris.coulson@canonical.com>
 Date: Tue, 1 Dec 2020 23:41:24 +0000
 Subject: [PATCH] commands/hashsum: Fix a memory leak
 
