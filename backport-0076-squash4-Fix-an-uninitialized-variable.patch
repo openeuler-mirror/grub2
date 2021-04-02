@@ -1,0 +1,40 @@
+From eb6d0ed961e6f83ea1cc8f8c81fdb4904a11d984 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Mon, 27 Jan 2020 15:01:16 -0500
+Subject: [PATCH] squash4: Fix an uninitialized variable
+
+gcc says:
+
+grub-core/fs/squash4.c: In function ‘direct_read’:
+grub-core/fs/squash4.c:868:10: error: ‘err’ may be used uninitialized in
+this function [-Werror=maybe-uninitialized]
+  868 |       if (err)
+      |          ^
+cc1: all warnings being treated as errors
+
+This patch initializes it to GRUB_ERR_NONE.
+
+Reference: http://git.savannah.gnu.org/cgit/grub.git/commit/?id=598de14d9340137cd7c7a099e8ed53d97f1f68a0
+
+Signed-off-by: Peter Jones <pjones@redhat.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/fs/squash4.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/grub-core/fs/squash4.c b/grub-core/fs/squash4.c
+index 7851238..a5f35c1 100644
+--- a/grub-core/fs/squash4.c
++++ b/grub-core/fs/squash4.c
+@@ -769,7 +769,7 @@ direct_read (struct grub_squash_data *data,
+ 	     struct grub_squash_cache_inode *ino,
+ 	     grub_off_t off, char *buf, grub_size_t len)
+ {
+-  grub_err_t err;
++  grub_err_t err = GRUB_ERR_NONE;
+   grub_off_t cumulated_uncompressed_size = 0;
+   grub_uint64_t a = 0;
+   grub_size_t i;
+-- 
+2.19.1
+

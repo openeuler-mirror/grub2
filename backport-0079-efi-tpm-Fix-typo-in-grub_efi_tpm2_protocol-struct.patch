@@ -1,0 +1,37 @@
+From c98fb6f044005e65186a9dd2964143cb5cadeaa9 Mon Sep 17 00:00:00 2001
+From: Daniel Kiper <daniel.kiper@oracle.com>
+Date: Mon, 25 May 2020 21:02:15 +0200
+Subject: [PATCH] efi/tpm: Fix typo in grub_efi_tpm2_protocol struct
+
+Rename get_active_pcr_blanks() to get_active_pcr_banks().
+
+Reference: http://git.savannah.gnu.org/cgit/grub.git/commit/?id=1e81bf6d2dd57ddee7a24ca9a8b4cac7700d3dc4
+
+Signed-off-by: Daniel Kiper <daniel.kiper@oracle.com>
+Reviewed-by: Javier Martinez Canillas <javierm@redhat.com>
+---
+ include/grub/efi/tpm.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/include/grub/efi/tpm.h b/include/grub/efi/tpm.h
+index 3ea6b4d..ec39725 100644
+--- a/include/grub/efi/tpm.h
++++ b/include/grub/efi/tpm.h
+@@ -176,10 +176,10 @@ struct grub_efi_tpm2_protocol
+ 				       OutputParameterBlockSize,
+ 				       grub_efi_uint8_t *
+ 				       OutputParameterBlock);
+-  grub_efi_status_t (*get_active_pcr_blanks) (struct grub_efi_tpm2_protocol *
+-					      this,
+-					      grub_efi_uint32_t *
+-					      ActivePcrBanks);
++  grub_efi_status_t (*get_active_pcr_banks) (struct grub_efi_tpm2_protocol *
++					     this,
++					     grub_efi_uint32_t *
++					     ActivePcrBanks);
+   grub_efi_status_t (*set_active_pcr_banks) (struct grub_efi_tpm2_protocol *
+ 					     this,
+ 					     grub_efi_uint32_t
+-- 
+2.19.1
+
