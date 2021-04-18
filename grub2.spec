@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	17
+Release:	18
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -451,6 +451,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Tue May 25 2021 yanan <yanan@huawei.com> - 2.04-18
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:delete the Symbolic Link of grubenv in grub2-efi-x64 and grub-efi-aa64 packages
+
 * Tue May 18 2021 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-17
 - Type:bugfix
 - ID:NA
