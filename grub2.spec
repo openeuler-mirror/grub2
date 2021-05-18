@@ -451,13 +451,11 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
-* Tue May 25 2021 yanan <yanan@huawei.com> - 2.04-17
+* Tue May 18 2021 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-17
 - Type:bugfix
 - ID:NA
 - SUG:NA
-- DESC:add grub2-mount to grub2-tools-minimal subpackage
-       the dependency om dmsetup is deleted from os-prober,and the grub2-mount command is required.
-       so add this command.
+- DESC:delete the Symbolic Link of grubenv in grub2-efi-x64 and grub-efi-aa64 packages
 
 * Tue Mar 30 2021 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-16
 - Type:bugfix
