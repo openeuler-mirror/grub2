@@ -511,8 +511,6 @@ install -D -m 700 unicode.pf2					\\\
 	$RPM_BUILD_ROOT%{efi_esp_dir}/fonts/unicode.pf2		\
 ${RPM_BUILD_ROOT}/%{_bindir}/%{name}-editenv			\\\
 	${RPM_BUILD_ROOT}%{efi_esp_dir}/grubenv create		\
-ln -sf ../efi/EFI/%{efi_vendor}/grubenv				\\\
-	$RPM_BUILD_ROOT/boot/grub2/grubenv			\
 cd ..								\
 %{nil}
 
@@ -604,7 +602,6 @@ touch ${RPM_BUILD_ROOT}/boot/%{name}/grub.cfg			\
 %dir %attr(0700,root,root)%{efi_esp_dir}/fonts			\
 %dir %attr(0700,root,root)/boot/loader/entries			\
 %ghost %config(noreplace) %attr(0700,root,root)%{efi_esp_dir}/grub.cfg	\
-%config(noreplace) /boot/grub2/grubenv					\
 %ghost %config(noreplace) %attr(0700,root,root)%{efi_esp_dir}/grubenv	\
 %{expand:%if 0%{?without_efi_modules}				\
 %exclude %{_libdir}/grub/%{6}					\
