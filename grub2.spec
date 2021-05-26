@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	17
+Release:	18
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -30,7 +30,7 @@ Source12:       installkernel.in
 BuildRequires:  gcc efi-srpm-macros flex bison binutils python3 ncurses-devel xz-devel
 BuildRequires:  freetype-devel libusb-devel bzip2-devel rpm-devel rpm-libs
 BuildRequires:  autoconf automake autogen device-mapper-devel freetype-devel git
-BuildRequires:  texinfo gettext-devel dejavu-sans-fonts help2man systemd
+BuildRequires:  texinfo gettext-devel dejavu-sans-fonts help2man systemd fuse-devel
 
 %ifarch %{golang_arches}
 BuildRequires:	pesign >= 0.99-8
@@ -220,6 +220,7 @@ cat << EOF > grub2.conf
 # these have execstack, and break under selinux
 -b /usr/bin/grub2-script-check
 -b /usr/bin/grub2-mkrelpath
+-b /usr/bin/grub2-mount
 -b /usr/bin/grub2-fstest
 -b /usr/sbin/grub2-bios-setup
 -b /usr/sbin/grub2-probe
@@ -399,6 +400,7 @@ rm -r /boot/grub2.tmp/ || :
 %{_sbindir}/%{name}-set-default
 %{_bindir}/%{name}-editenv
 %{_bindir}/%{name}-mkpasswd-pbkdf2
+%{_bindir}/%{name}-mount
 
 %files tools-extra
 %defattr(-,root,root)
@@ -446,6 +448,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Tue May 25 2021 yanan <yanan@huawei.com> - 2.04-18
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:delete the Symbolic Link of grubenv in grub2-efi-x64 and grub-efi-aa64 packages
+
 * Tue May 18 2021 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-17
 - Type:bugfix
 - ID:NA
