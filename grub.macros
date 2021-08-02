@@ -333,8 +333,8 @@ git init							\
 echo '![[:digit:]][[:digit:]]_*.in' > util/grub.d/.gitignore	\
 echo '!*.[[:digit:]]' > util/.gitignore				\
 echo '!config.h' > include/grub/emu/.gitignore			\
-git config user.email "%{name}-owner@fedoraproject.org"		\
-git config user.name "Fedora Ninjas"				\
+git config user.email "buildteam@%{efi_vendor}.org"		\
+git config user.name "%{efi_vendor} Buildteam"			\
 git config gc.auto 0						\
 rm -f configure							\
 git add .							\
