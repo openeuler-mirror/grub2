@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	19
+Release:	20
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -448,6 +448,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Mon Sep 27 2021 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-20
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:verifiers: Fix calling uninitialized function pointer
+
 * Mon Aug 02 2021 gaihuiying <gaihuiying1@huawei.com> - 2.04-19
 - Type:bugfix
 - ID:NA
