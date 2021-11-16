@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	20
+Release:	21
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -448,6 +448,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Tue Nov 16 2021 fengtao <fengtao40@huawei.com> - 2.04-21
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:Fix bad test on GRUB_DISABLE_SUBMENU
+
 * Mon Sep 27 2021 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-20
 - Type:bugfix
 - ID:NA
