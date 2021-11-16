@@ -1,0 +1,56 @@
+From 8d803482eda7214f33dbef79f3f88886d3a20263 Mon Sep 17 00:00:00 2001
+From: Prarit Bhargava <prarit@redhat.com>
+Date: Mon, 30 Sep 2019 17:00:16 +0200
+Subject: [PATCH] templates: Fix bad test on GRUB_DISABLE_SUBMENU
+
+The GRUB_DISABLE_SUBMENU option is different than the others in the sense
+that it has to be set to "y" instead of "true" to be enabled.
+
+That causes a lot of confusion to users, some may wrongly set it to "true"
+expecting that will work the same than with most options, and some may set
+it to "yes" since for other options the value to set is a word and not a
+single character.
+
+This patch changes all the grub.d scripts using the GRUB_DISABLE_SUBMENU
+option, so they check if it was set to "true" instead of "y", making it
+consistent with all the other options.
+
+But to keep backward compatibility for users that set the option to "y" in
+/etc/default/grub file, keep testing for this value. And also do it for
+"yes", since it is a common mistake made by users caused by this option
+being inconsistent with the others.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit/util/grub.d/30_os-prober.in?id=ee4bd79ef28e6fa4a68bb51c31a5e67a7cbf01ea
+Conflict:NA
+
+Signed-off-by: Prarit Bhargava <prarit@redhat.com>
+Signed-off-by: Javier Martinez Canillas <javierm@redhat.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ util/grub.d/30_os-prober.in | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/util/grub.d/30_os-prober.in b/util/grub.d/30_os-prober.in
+index ab63439..b659aeb 100644
+--- a/util/grub.d/30_os-prober.in
++++ b/util/grub.d/30_os-prober.in
+@@ -195,7 +195,15 @@ EOF
+ 	  prepare_boot_cache="$(prepare_grub_to_access_device ${LBOOT} | grub_add_tab)"
+ 	fi
+ 
+-	if [ "x$is_top_level" = xtrue ] && [ "x${GRUB_DISABLE_SUBMENU}" != xy ]; then
++	# The GRUB_DISABLE_SUBMENU option used to be different than others since it was
++	# mentioned in the documentation that has to be set to 'y' instead of 'true' to
++	# enable it. This caused a lot of confusion to users that set the option to 'y',
++	# 'yes' or 'true'. This was fixed but all of these values must be supported now.
++	if [ "x${GRUB_DISABLE_SUBMENU}" = xyes ] || [ "x${GRUB_DISABLE_SUBMENU}" = xy ]; then
++	    GRUB_DISABLE_SUBMENU="true"
++	fi
++
++	if [ "x$is_top_level" = xtrue ] && [ "x${GRUB_DISABLE_SUBMENU}" != xtrue ]; then
+             cat << EOF
+ menuentry '$(echo "$OS $onstr" | grub_quote)' $CLASS --class gnu-linux --class gnu --class os \$menuentry_id_option 'osprober-gnulinux-simple-$boot_device_id' {
+ EOF
+-- 
+2.19.1
+
