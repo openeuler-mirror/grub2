@@ -1,0 +1,96 @@
+From c4c243d19d77cab3591f0272c8e36619ccbbddf3 Mon Sep 17 00:00:00 2001
+From: gaoyusong <gaoyusong1@huawei.com>
+Date: Thu, 13 May 2021 18:34:23 +0800
+Subject: [PATCH] support TPM2.0
+
+---
+ grub-core/kern/verifiers.c | 25 +++++++++++++++++++------
+ grub-core/script/execute.c | 12 +++++++++++-
+ 2 files changed, 30 insertions(+), 7 deletions(-)
+
+diff --git a/grub-core/kern/verifiers.c b/grub-core/kern/verifiers.c
+index aa3dc7c..dfd73e5 100644
+--- a/grub-core/kern/verifiers.c
++++ b/grub-core/kern/verifiers.c
+@@ -84,9 +84,16 @@ grub_verifiers_open (grub_file_t io, enum grub_file_type type)
+   grub_file_t ret = 0;
+   grub_err_t err;
+   int defer = 0;
++  int grub_env_flag = 0;
++  char *ptr = NULL;
+ 
+   grub_dprintf ("verify", "file: %s type: %d\n", io->name, type);
+ 
++  ptr = grub_strstr(io->name, "grubenv");
++  if (ptr) {
++    grub_env_flag = 1;
++  }
++
+   if ((type & GRUB_FILE_TYPE_MASK) == GRUB_FILE_TYPE_SIGNATURE
+       || (type & GRUB_FILE_TYPE_MASK) == GRUB_FILE_TYPE_VERIFY_SIGNATURE
+       || (type & GRUB_FILE_TYPE_SKIP_SIGNATURE))
+@@ -148,6 +155,8 @@ grub_verifiers_open (grub_file_t io, enum grub_file_type type)
+   verified->buf = grub_malloc (ret->size);
+   if (!verified->buf)
+     {
++      grub_error (GRUB_ERR_OUT_OF_MEMORY,
++            "cannot allocate verified buffer, the %s is too large\n", io->name);
+       goto fail;
+     }
+   if (grub_file_read (io, verified->buf, ret->size) != (grub_ssize_t) ret->size)
+@@ -158,9 +167,11 @@ grub_verifiers_open (grub_file_t io, enum grub_file_type type)
+       goto fail;
+     }
+ 
+-  err = ver->write (context, verified->buf, ret->size);
+-  if (err)
+-    goto fail;
++  if (!grub_env_flag) {
++    err = ver->write (context, verified->buf, ret->size);
++    if (err)
++      goto fail;
++  }
+ 
+   err = ver->fini ? ver->fini (context) : GRUB_ERR_NONE;
+   if (err)
+@@ -179,9 +190,11 @@ grub_verifiers_open (grub_file_t io, enum grub_file_type type)
+ 	  /* Verification done earlier. So, we are happy here. */
+ 	  flags & GRUB_VERIFY_FLAGS_DEFER_AUTH)
+ 	continue;
+-      err = ver->write (context, verified->buf, ret->size);
+-      if (err)
+-	goto fail;
++      if (!grub_env_flag) {
++        err = ver->write (context, verified->buf, ret->size);
++        if (err)
++          goto fail;
++      }
+ 
+       err = ver->fini ? ver->fini (context) : GRUB_ERR_NONE;
+       if (err)
+diff --git a/grub-core/script/execute.c b/grub-core/script/execute.c
+index 0c6dd9c..3e761c4 100644
+--- a/grub-core/script/execute.c
++++ b/grub-core/script/execute.c
+@@ -1002,7 +1002,17 @@ grub_script_execute_cmdline (struct grub_script_cmd *cmd)
+ 			       argv.args[i]);
+     }
+   cmdstring[cmdlen - 1] = '\0';
+-  grub_verify_string (cmdstring, GRUB_VERIFY_COMMAND);
++
++  if (grub_strncmp(cmdstring, "[ 0 = 1 ]", 9) == 0) {
++    char res_str[] = "[  = 1 ]";
++    grub_verify_string (res_str, GRUB_VERIFY_COMMAND);
++  } else if (grub_strncmp(cmdstring, "[ 0 = 1 -o  = 1 ]", 17) == 0) {
++    char res_str[] = "[  = 1 -o  = 1 ]";
++    grub_verify_string (res_str, GRUB_VERIFY_COMMAND);
++  } else {
++    grub_verify_string (cmdstring, GRUB_VERIFY_COMMAND);
++  }
++
+   grub_free (cmdstring);
+   invert = 0;
+   argc = argv.argc - 1;
+-- 
+2.19.1
+
