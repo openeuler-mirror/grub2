@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	22
+Release:	24
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -450,11 +450,25 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
-* Sat Feb 26 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-22
+* Sat Feb 26 2022 yanan <yanan@huawei.com> - 2.04-24
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:Fix arm64 kernel image not aligned on 64k boundary
+
+* Sat Feb 26 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-23
 - Type:bugfix
 - CVE:NA
 - SUG:NA
 - DESC:disable grub-boot-success.service
+
+* Fri Nov 26 2021 xihaochen<xihaochen@huawei.com> - 2.04-22
+- Type:bugfix
+- ID:NA
+- SUG:NA
+  DESC:grub2 set password prompts to enter the current pass
+       support TPM2.0
+       use default timestamp
 
 * Tue Nov 16 2021 fengtao <fengtao40@huawei.com> - 2.04-21
 - Type:bugfix
