@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	21
+Release:	22
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -243,7 +243,6 @@ install -m 0644 /dev/null %{buildroot}%{_sysconfdir}/kernel/install.d/90-loadere
 install -d -m 0755 %{buildroot}%{_userunitdir}/timers.target.wants
 install -m 0755 docs/grub-boot-success.timer %{buildroot}%{_userunitdir}
 install -m 0755 docs/grub-boot-success.service %{buildroot}%{_userunitdir}
-ln -s ../grub-boot-success.timer %{buildroot}%{_userunitdir}/timers.target.wants
 
 install -d -m 0755 %{buildroot}%{_unitdir}/system-update.target.wants
 install -m 0755 docs/grub-boot-indeterminate.service %{buildroot}%{_unitdir}
@@ -451,6 +450,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Sat Feb 26 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-22
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:disable grub-boot-success.service
+
 * Tue Nov 16 2021 fengtao <fengtao40@huawei.com> - 2.04-21
 - Type:bugfix
 - ID:NA
