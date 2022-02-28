@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	23
+Release:	24
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -450,6 +450,13 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Mon Feb 28 2022 fengtao <fengtao40@huawei.com> - 2.04-24
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:fix arm64 kernel image not aligned on 64k boundary
+       fix grub.patches file format to unix
+
 * Sat Feb 26 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-23
 - Type:bugfix
 - CVE:NA

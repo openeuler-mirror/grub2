@@ -356,3 +356,5 @@ Patch0355: backport-templates-Fix-bad-test-on-GRUB_DISABLE_SUBMENU.patch
 Patch0356: grub2-set-password-prompts-to-enter-the-current-pass.patch
 Patch0357: support-TPM2.0.patch
 Patch0358: use-default-timestamp.patch
+Patch0359: backport-arm64-Fix-EFI-loader-kernel-image-allocation.patch
+Patch0360: backport-Arm-check-for-the-PE-magic-for-the-compiled-arch.patch
