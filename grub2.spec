@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	24
+Release:	25
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -450,6 +450,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Wed Mar 16 2022 xihaochen <xihaochen@h-partners.com> - 2.04-25
+- Type:CVE
+- CVE:CVE-2021-3981
+- SUG:NA
+- DESC:Fix CVE-2021-3981
+
 * Sat Feb 26 2022 yanan <yanan@huawei.com> - 2.04-24
 - Type:bugfix
 - CVE:NA
