@@ -358,3 +358,4 @@ Patch0357: support-TPM2.0.patch
 Patch0358: use-default-timestamp.patch
 Patch0359: backport-arm64-Fix-EFI-loader-kernel-image-allocation.patch
 Patch0360: backport-Arm-check-for-the-PE-magic-for-the-compiled-arch.patch
+Patch0361: backport-CVE-2021-3981-restore-umask-for-the-grub.patch
