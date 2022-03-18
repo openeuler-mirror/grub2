@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	25
+Release:	26
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -210,6 +210,11 @@ echo '.so man8/%{name}-set-password.8' > ${RPM_BUILD_ROOT}/%{_datadir}/man/man8/
 rm -vf ${RPM_BUILD_ROOT}/%{_bindir}/%{name}-render-label
 rm -vf ${RPM_BUILD_ROOT}/%{_sbindir}/%{name}-bios-setup
 rm -vf ${RPM_BUILD_ROOT}/%{_sbindir}/%{name}-macbless
+%else
+pushd %{buildroot}/usr/lib/grub/i386-pc/
+strip kernel.exec
+strip lnxboot.image
+popd
 %endif
 
 %find_lang grub
@@ -241,11 +246,11 @@ install -m 0644 /dev/null %{buildroot}%{_sysconfdir}/kernel/install.d/20-grubby.
 install -m 0644 /dev/null %{buildroot}%{_sysconfdir}/kernel/install.d/90-loaderentry.install
 
 install -d -m 0755 %{buildroot}%{_userunitdir}/timers.target.wants
-install -m 0755 docs/grub-boot-success.timer %{buildroot}%{_userunitdir}
-install -m 0755 docs/grub-boot-success.service %{buildroot}%{_userunitdir}
+install -m 0644 docs/grub-boot-success.timer %{buildroot}%{_userunitdir}
+install -m 0644 docs/grub-boot-success.service %{buildroot}%{_userunitdir}
 
 install -d -m 0755 %{buildroot}%{_unitdir}/system-update.target.wants
-install -m 0755 docs/grub-boot-indeterminate.service %{buildroot}%{_unitdir}
+install -m 0644 docs/grub-boot-indeterminate.service %{buildroot}%{_unitdir}
 ln -s ../grub-boot-indeterminate.service %{buildroot}%{_unitdir}/system-update.target.wants
 
 install -d -m 0755 %{buildroot}%{_libexecdir}/installkernel
@@ -346,7 +351,6 @@ rm -r /boot/grub2.tmp/ || :
 %files tools
 %defattr(-,root,root)
 %{_sbindir}/%{name}-mkconfig
-%exclude %{_sbindir}/grub2-set-bootflag
 %{_sbindir}/%{name}-switch-to-blscfg
 %{_sbindir}/%{name}-rpm-sort
 %{_sbindir}/%{name}-reboot
@@ -420,6 +424,7 @@ rm -r /boot/grub2.tmp/ || :
 
 %ifarch x86_64
 %files tools-efi
+%defattr(-,root,root)
 %{_sbindir}/%{name}-macbless
 %{_bindir}/%{name}-render-label
 %endif
@@ -450,6 +455,13 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Fri Mar 18 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-26
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:modify some file permissions
+       strip kernel.exec and lnboot.image
+
 * Wed Mar 16 2022 xihaochen <xihaochen@h-partners.com> - 2.04-25
 - Type:CVE
 - CVE:CVE-2021-3981
