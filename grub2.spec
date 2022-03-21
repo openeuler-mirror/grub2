@@ -1,14 +1,19 @@
 %undefine _hardened_build
 
-%global tarversion 2.04
+%if "0%{?product_family}" == "0"
 %define efi_vendor %{_vendor}
+%else
+%define efi_vendor %{product_family}
+%endif
+
+%global tarversion 2.04
 %undefine _missing_build_ids_terminate_build
 %global _configure_gnuconfig_hack 0
 
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	26
+Release:	27
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -455,6 +460,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Mon Mar 21 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-27
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:use product_family macro(if defined) to set efi_vendor
+
 * Fri Mar 18 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-26
 - Type:bugfix
 - CVE:NA
