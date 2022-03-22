@@ -329,6 +329,11 @@ This subpackage provides optional components of grub used with removeable media 
 rm -fv docs/*.info						\
 cp %{SOURCE6} .gitignore					\
 cp %{SOURCE9} ./grub-core/tests/strtoull_test.c			\
+cp %{SOURCE11} bootstrap					\
+cp %{SOURCE12} bootstrap.conf					\
+cp %{SOURCE8} gnulib-%{gnulibversion}.tar.gz			\
+tar -zxf gnulib-%{gnulibversion}.tar.gz				\
+mv gnulib-%{gnulibversion} gnulib				\
 git init							\
 echo '![[:digit:]][[:digit:]]_*.in' > util/grub.d/.gitignore	\
 echo '!*.[[:digit:]]' > util/.gitignore				\
@@ -340,27 +345,23 @@ rm -f configure							\
 git add .							\
 git commit -a -q -m "%{tarversion} baseline."			\
 git am --whitespace=nowarn %%{patches} </dev/null		\
-autoreconf -vif                          \
-git add .                           \
-git commit -a -q -m "autoreconf"    \
-autoconf                            \
-PYTHON=python3 ./autogen.sh                 \
+sh bootstrap							\
 %{nil}
 
 %define do_efi_configure()					\
-%configure                          \\\
-    %{cc_equals}                        \\\
-    HOST_CFLAGS="%{3} -I$(pwd)"             \\\
-    HOST_CPPFLAGS="${CPPFLAGS} -I$(pwd)"            \\\
-    TARGET_CFLAGS="%{2} -I$(pwd)"               \\\
-    TARGET_CPPFLAGS="${CPPFLAGS} -I$(pwd)"          \\\
-    TARGET_LDFLAGS="%{efi_target_ldflags}"                  \\\
-    --with-platform=efi                 \\\
-    --with-utils=host                   \\\
-    --target=%{1}                       \\\
-    --with-grubdir=%{name}                  \\\
-    --program-transform-name=s,grub,%{name},        \\\
-    --disable-werror || ( cat config.log ; exit 1 )     \
+%configure							\\\
+    %{cc_equals}						\\\
+    HOST_CFLAGS="%{3} -I$(pwd)"					\\\
+    HOST_CPPFLAGS="${CPPFLAGS} -I$(pwd)"			\\\
+    TARGET_CFLAGS="%{2} -I$(pwd)"				\\\
+    TARGET_CPPFLAGS="${CPPFLAGS} -I$(pwd)"			\\\
+    TARGET_LDFLAGS="%{efi_target_ldflags}"			\\\
+    --with-platform=efi						\\\
+    --with-utils=host						\\\
+    --target=%{1}						\\\
+    --with-grubdir=%{name}					\\\
+    --program-transform-name=s,grub,%{name},			\\\
+    --disable-werror || ( cat config.log ; exit 1 )		\
 git add .							\
 git commit -m "After efi configure"				\
 %{nil}
@@ -436,19 +437,19 @@ cd ..								\
 
 %define do_legacy_build()					\
 cd grub-%{1}-%{tarversion}					\
-%configure                          \\\
-    %{cc_equals}                        \\\
-    HOST_CFLAGS="%{legacy_host_cflags} -I$(pwd)"        \\\
-    HOST_CPPFLAGS="-I${pwd}"              \\\
-    TARGET_CFLAGS="%{legacy_target_cflags} -I$(pwd)"    \\\
-    TARGET_CPPFLAGS="-I${pwd}"             \\\
-    TARGET_LDFLAGS="%{legacy_target_ldflags}"            \\\
-    --with-platform=%{platform}             \\\
-    --with-utils=host                   \\\
-    --target=%{_target_platform}                \\\
-    --with-grubdir=%{name}                  \\\
-    --program-transform-name=s,grub,%{name},        \\\
-    --disable-werror || ( cat config.log ; exit 1 )     \
+%configure							\\\
+    %{cc_equals}						\\\
+    HOST_CFLAGS="%{legacy_host_cflags} -I$(pwd) "		\\\
+    HOST_CPPFLAGS="-I$(pwd)"					\\\
+    TARGET_CFLAGS="%{legacy_target_cflags} -I$(pwd) "		\\\
+    TARGET_CPPFLAGS="-I$(pwd)"					\\\
+    TARGET_LDFLAGS="%{legacy_target_ldflags}"			\\\
+    --with-platform=%{platform}					\\\
+    --with-utils=host						\\\
+    --target=%{_target_platform}				\\\
+    --with-grubdir=%{name}					\\\
+    --program-transform-name=s,grub,%{name},			\\\
+    --disable-werror || ( cat config.log ; exit 1 )		\
 git add .							\
 git commit -m "After legacy configure"				\
 make %{?_smp_mflags}						\
