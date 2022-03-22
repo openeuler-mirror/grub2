@@ -1,7 +1,7 @@
-From 8922ea771163655f1d5dc8da589a6291976ae489 Mon Sep 17 00:00:00 2001
+From 62cb96c5b34bfa68ad3d7ffe3f3098d8cd08f83f Mon Sep 17 00:00:00 2001
 From: zhouyihang <zhouyihang3@huawei.com>
 Date: Thu, 10 Jun 2021 20:01:54 +0800
-Subject: [PATCH] huawei use default timestamp
+Subject: [PATCH] use default timestamp
 
 ---
  docs/grub-dev.texi | 4 ++--
@@ -9,7 +9,7 @@ Subject: [PATCH] huawei use default timestamp
  2 files changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/docs/grub-dev.texi b/docs/grub-dev.texi
-index f488e82..355764a 100644
+index 9008377..874b3ea 100644
 --- a/docs/grub-dev.texi
 +++ b/docs/grub-dev.texi
 @@ -18,7 +18,7 @@
@@ -31,7 +31,7 @@ index f488e82..355764a 100644
  @author Colin D Bennett
  @author Vesa Jääskeläinen
 diff --git a/docs/grub.texi b/docs/grub.texi
-index 262388c..41c1a89 100644
+index a4da9c2..79055be 100644
 --- a/docs/grub.texi
 +++ b/docs/grub.texi
 @@ -18,7 +18,7 @@
@@ -48,10 +48,10 @@ index 262388c..41c1a89 100644
  @sp 10
  @title the GNU GRUB manual
 -@subtitle The GRand Unified Bootloader, version @value{VERSION}, @value{UPDATED}.
-+@subtitle The GRand Unified Bootloader, version @value{VERSION}, 24 June 2019.
++@subtitle The GRand Unified Bootloader, version @value{VERSION}, 24 June 2019).
  @author Gordon Matzigkeit
  @author Yoshinori K. Okuji
  @author Colin Watson
 -- 
-2.27.0
+2.19.1
 
