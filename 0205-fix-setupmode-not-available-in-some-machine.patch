@@ -1,0 +1,48 @@
+From 4fc72f509627da808b452eb1186282237c449b65 Mon Sep 17 00:00:00 2001
+From: fengtao <fengtao40@huawei.com>
+Date: Tue, 22 Mar 2022 22:22:22 +0800
+Subject: [PATCH] fix setupmode not available in some machine
+
+In some machine, there is no setupmode variable, so we should 
+give setupmode a default vaule: setup_mode = 0
+
+if we cannot get setupmode variable, we use setup_mode instead.
+
+---
+ grub-core/kern/efi/sb.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/grub-core/kern/efi/sb.c b/grub-core/kern/efi/sb.c
+index c52ec62..f58fb13 100644
+--- a/grub-core/kern/efi/sb.c
++++ b/grub-core/kern/efi/sb.c
+@@ -50,6 +50,7 @@ grub_efi_get_secureboot (void)
+   grub_uint8_t *moksbstate = NULL;
+   grub_uint8_t secureboot = GRUB_EFI_SECUREBOOT_MODE_UNKNOWN;
+   const char *secureboot_str = "UNKNOWN";
++  grub_uint8_t setup_mode = 0;
+ 
+   status = grub_efi_get_variable ("SecureBoot", &efi_variable_guid,
+ 				  &size, (void **) &secboot);
+@@ -67,9 +68,16 @@ grub_efi_get_secureboot (void)
+ 				  &size, (void **) &setupmode);
+ 
+   if (status != GRUB_EFI_SUCCESS)
+-    goto out;
++    {
++      grub_dprintf ("efi", "No SetupMode variable\n");
++    }
++  else
++    {
++      grub_dprintf ("efi", "SetupMode: %d\n", *setupmode);
++      setup_mode = *setupmode;
++    }
+ 
+-  if ((*secboot == 0) || (*setupmode == 1))
++  if ((*secboot == 0) || (setup_mode == 1))
+     {
+       secureboot = GRUB_EFI_SECUREBOOT_MODE_DISABLED;
+       goto out;
+-- 
+2.23.0
+
