@@ -1,40 +1,42 @@
 %undefine _hardened_build
 
+%global tarversion 2.06
 %if "0%{?product_family}" == "0"
 %define efi_vendor %{_vendor}
 %else
 %define efi_vendor %{product_family}
 %endif
-
-%global tarversion 2.04
 %undefine _missing_build_ids_terminate_build
 %global _configure_gnuconfig_hack 0
 
+%global gnulibversion fixes
+
 Name:		grub2
 Epoch:		1
-Version:	2.04
-Release:	27
+Version:	2.06
+Release:	1
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
 Source0:	https://ftp.gnu.org/gnu/grub/grub-%{tarversion}.tar.xz
 Source1:	grub.macros
 Source2:	grub.patches
-Source4:	http://unifoundry.com/unifont-5.1.20080820.pcf.gz
+Source4:	http://unifoundry.com/pub/unifont/unifont-13.0.06/font-builds/unifont-13.0.06.pcf.gz
 Source5:	theme.tar.bz2
 Source6:	gitignore
-Source7:        99-grub-mkconfig.install
+Source7:	99-grub-mkconfig.install
+Source8:	gnulib-%{gnulibversion}.tar.gz
 Source9:	strtoull_test.c
 Source10:	20-grub.install
-Source11:	installkernel-bls
-Source12:       installkernel.in
+Source11:	bootstrap
+Source12:	bootstrap.conf
 
 %include %{SOURCE1}
 %include %{SOURCE2}
 
 BuildRequires:  gcc efi-srpm-macros flex bison binutils python3 ncurses-devel xz-devel
 BuildRequires:  freetype-devel libusb-devel bzip2-devel rpm-devel rpm-libs
-BuildRequires:  autoconf automake autogen device-mapper-devel freetype-devel git
+BuildRequires:  autoconf automake device-mapper-devel freetype-devel git
 BuildRequires:  texinfo gettext-devel dejavu-sans-fonts help2man systemd fuse-devel
 
 %ifarch %{golang_arches}
@@ -167,6 +169,11 @@ cp %{SOURCE4} grub-emu-%{tarversion}/unifont.pcf.gz
 git add grub-emu-%{tarversion}
 %endif
 git commit -m "After making subdirs"
+sed -i '/videotest_checksum/d' grub-core/tests/lib/functional_test.c
+sed -i '/gfxterm_menu/d' grub-core/tests/lib/functional_test.c
+sed -i '/cmdline_cat_test/d' grub-core/tests/lib/functional_test.c
+git add grub-core/tests/lib/functional_test.c
+git commit -m "Disable partial grub_func_test cases"
 
 %build
 %if 0%{with_efi_arch}
@@ -224,22 +231,6 @@ popd
 
 %find_lang grub
 
-install -d %{buildroot}%{_sysconfdir}/prelink.conf.d/
-
-pushd %{buildroot}%{_sysconfdir}/prelink.conf.d/
-cat << EOF > grub2.conf
-# these have execstack, and break under selinux
--b /usr/bin/grub2-script-check
--b /usr/bin/grub2-mkrelpath
--b /usr/bin/grub2-mount
--b /usr/bin/grub2-fstest
--b /usr/sbin/grub2-bios-setup
--b /usr/sbin/grub2-probe
--b /usr/sbin/grub2-sparc64-setup
-EOF
-popd
-
-
 mkdir -p %{buildroot}%{_datadir}/grub/themes
 
 install -d -m 0755 %{buildroot}%{_prefix}/lib/kernel/install.d/
@@ -257,10 +248,6 @@ install -m 0644 docs/grub-boot-success.service %{buildroot}%{_userunitdir}
 install -d -m 0755 %{buildroot}%{_unitdir}/system-update.target.wants
 install -m 0644 docs/grub-boot-indeterminate.service %{buildroot}%{_unitdir}
 ln -s ../grub-boot-indeterminate.service %{buildroot}%{_unitdir}/system-update.target.wants
-
-install -d -m 0755 %{buildroot}%{_libexecdir}/installkernel
-cp -v %{SOURCE11} %{buildroot}%{_libexecdir}/installkernel
-sed -e "s,@@LIBEXECDIR@@,%{_libexecdir}/installkernel,g" %{SOURCE12} > %{buildroot}%{_sbindir}/installkernel
 
 %global finddebugroot "%{_builddir}/%{?buildsubdir}/debug"
 
@@ -317,29 +304,10 @@ if [ -f /etc/default/grub ]; then
     fi
 fi
 
-%triggerun -- grub2 < 1:1.99-4
-mkdir -p /boot/grub2.tmp &&
-mv -f /boot/grub2/*.mod \
-      /boot/grub2/*.img \
-      /boot/grub2/*.lst \
-      /boot/grub2/device.map \
-      /boot/grub2.tmp/ || :
-
-%triggerpostun -- grub2 < 1:1.99-4
-test ! -f /boot/grub2/device.map &&
-test -d /boot/grub2.tmp &&
-mv -f /boot/grub2.tmp/*.mod \
-      /boot/grub2.tmp/*.img \
-      /boot/grub2.tmp/*.lst \
-      /boot/grub2.tmp/device.map \
-      /boot/grub2/ &&
-rm -r /boot/grub2.tmp/ || :
-
 %files common -f grub.lang
 %defattr(-,root,root)
 %license COPYING
 %dir /boot/grub2/themes/system
-%attr(0755,root,root) %{_sbindir}/installkernel
 %attr(0700,root,root) %dir /boot/grub2
 %ghost %config(noreplace) /boot/grub2/grubenv
 %exclude /boot/grub2/*
@@ -349,7 +317,6 @@ rm -r /boot/grub2.tmp/ || :
 %{_prefix}/lib/kernel/install.d/20-grub.install
 %{_prefix}/lib/kernel/install.d/99-grub-mkconfig.install
 %{_sysconfdir}/kernel/install.d/*.install
-%{_libexecdir}/installkernel/installkernel-bls
 %dir %attr(0700,root,root) %{efi_esp_dir}
 %{_datadir}/locale/*
 
@@ -369,12 +336,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_bindir}/%{name}-mkimage
 %{_bindir}/%{name}-mkrelpath
 %{_bindir}/%{name}-script-check
+%{_libexecdir}/%{name}
 
 %config %{_sysconfdir}/grub.d/??_*
 %exclude %{_sysconfdir}/grub.d/01_fallback_counting
 %attr(0644,root,root) %ghost %config(noreplace) %{_sysconfdir}/default/grub
 %{_sysconfdir}/grub.d/README
-%{_sysconfdir}/prelink.conf.d/grub2.conf
 %{_userunitdir}/*
 %{_unitdir}/*
 %{_datarootdir}/grub/*
@@ -387,16 +354,16 @@ rm -r /boot/grub2.tmp/ || :
 %if %{with_legacy_arch}
 %{_sbindir}/grub2-install
 %ifarch x86_64
-%{_sbindir}/%{name}-bios-setup
+%{_sbindir}/grub2-bios-setup
 %else
 %exclude %{_sbindir}/%{name}-bios-setup
 %endif
 %ifarch %{sparc}
 %{_sbindir}/grub2-sparc64-setup
-%{_sbindir}/%{name}-ofpathname
+%{_sbindir}/grub2-ofpathname
 %else
 %exclude %{_sbindir}/grub2-sparc64-setup
-%exclude %{_sbindir}/%{name}-ofpathname
+%exclude %{_sbindir}/grub2-ofpathname
 %endif
 %exclude %{_sbindir}/grub2-ofpathname
 %endif
@@ -404,7 +371,6 @@ rm -r /boot/grub2.tmp/ || :
 
 %files tools-minimal
 %defattr(-,root,root)
-%{_sysconfdir}/prelink.conf.d/grub2.conf
 %attr(4755, root, root) %{_sbindir}/%{name}-set-bootflag
 %{_sbindir}/%{name}-get-kernel-settings
 %{_sbindir}/%{name}-set*password
@@ -460,6 +426,13 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Tue Mar 22 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.06-1
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:update to version 2.06
+       disable partial grub_func_test cases because they are not supported
+
 * Mon Mar 21 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-27
 - Type:bugfix
 - CVE:NA
@@ -471,7 +444,7 @@ rm -r /boot/grub2.tmp/ || :
 - CVE:NA
 - SUG:NA
 - DESC:modify some file permissions
-       strip kernel.exec and lnboot.image
+strip kernel.exec and lnboot.image
 
 * Wed Mar 16 2022 xihaochen <xihaochen@h-partners.com> - 2.04-25
 - Type:CVE
@@ -479,11 +452,12 @@ rm -r /boot/grub2.tmp/ || :
 - SUG:NA
 - DESC:Fix CVE-2021-3981
 
-* Sat Feb 26 2022 yanan <yanan@huawei.com> - 2.04-24
+* Mon Feb 28 2022 fengtao <fengtao40@huawei.com> - 2.04-24
 - Type:bugfix
 - CVE:NA
 - SUG:NA
-- DESC:Fix arm64 kernel image not aligned on 64k boundary
+- DESC:fix arm64 kernel image not aligned on 64k boundary
+       fix grub.patches file format to unix
 
 * Sat Feb 26 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-23
 - Type:bugfix
@@ -565,7 +539,7 @@ rm -r /boot/grub2.tmp/ || :
 - DESC:fix the installation failure of grub2-efi-x64/grub-efi-aa64 packages on
        the /boot partition of VFAT file system.
 
-* Tue Mar 62 2021 hanhui <hanhui15@huawei.com> - 2.04-11
+* Tue Mar 16 2021 hanhui <hanhui15@huawei.com> - 2.04-11
 - Type:cves
 - Id:CVE-2020-27779 CVE-2020-14372
 - SUG:NA
@@ -632,7 +606,7 @@ rm -r /boot/grub2.tmp/ || :
 * Fri Apr 24 2020 fengtao <fengtao40@huawei.com> - 2.02-74
 - exclude two cmd in grub2-tools
 
-* Wed Mar 3 2020 songnannan <songnannan2@huawei.com> - 2.02-73
+* Tue Mar 3 2020 songnannan <songnannan2@huawei.com> - 2.02-73
 - delete java-1.8.0-openjdk in buildrequires
 
 * Thu Feb 20 2020 openEuler Buildteam <buildteam@openeuler.org> - 2.02-72
