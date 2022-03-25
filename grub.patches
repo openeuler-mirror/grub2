@@ -202,5 +202,9 @@ Patch0201: 0201-fs-btrfs-Use-full-btrfs-bootloader-area.patch
 Patch0202: grub2-set-password-prompts-to-enter-the-current-pass.patch
 Patch0203: support-TPM2.0.patch
 Patch0204: use-default-timestamp.patch
-Patch0205: 0205-fix-setupmode-not-available-in-some-machine.patch
-Patch0206: 0206-remove-08_fallback_counting.in-apply-grubby.patch
+Patch0205: fix-setupmode-not-available-in-some-machine.patch
+Patch0206: remove-08_fallback_counting.in-apply-grubby.patch
+Patch0207: backport-grub-core-loader-i386-efi-linux.c-do-not-validate-ke.patch
+Patch0208: backport-grub-core-loader-arm64-linux.c-do-not-validate-kerne.patch
+Patch0209: backport-grub-core-loader-efi-chainloader.c-do-not-validate-c.patch
+Patch0210: backport-grub-core-loader-efi-linux.c-drop-now-unused-grub_li.patch
