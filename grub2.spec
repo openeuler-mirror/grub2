@@ -14,7 +14,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.06
-Release:	3
+Release:	4
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -30,6 +30,7 @@ Source9:	strtoull_test.c
 Source10:	20-grub.install
 Source11:	bootstrap
 Source12:	bootstrap.conf
+Source13:	sbat.csv.in
 
 %include %{SOURCE1}
 %include %{SOURCE2}
@@ -46,7 +47,7 @@ BuildRequires:	pesign >= 0.99-8
 BuildRequires:	ccache
 %endif
 
-Obsoletes:  grub2 <= %{evr} grub < 1:0.98
+Obsoletes:	%{name} <= %{evr}
 
 %if 0%{with_legacy_arch}
 Requires:	%{name}-%{legacy_package_arch} = %{evr}
@@ -76,7 +77,8 @@ Common package for grub2.
 
 %package        tools
 Summary:    tools package for grub2
-Requires:   grub2-common = %{epoch}:%{version}-%{release}
+Obsoletes:	%{name}-tools < %{evr}
+Requires:   %{name}-common = %{epoch}:%{version}-%{release}
 Requires:   gettext os-prober which file
 Requires(pre):  dracut
 Requires(post): dracut
@@ -87,7 +89,7 @@ tools package for grub2.
 %package     tools-minimal
 Summary:     Support tools for GRUB.
 Requires:    gettext %{name}-common = %{epoch}:%{version}-%{release}
-Obsoletes:   grub2-tools < %{evr}
+Obsoletes:   %{name}-tools < %{evr}
 
 %description tools-minimal
 Support tools for GRUB.
@@ -97,7 +99,7 @@ Summary:     Support tools for GRUB.
 Requires:    gettext os-prober which file
 Requires:    %{name}-tools-minimal = %{epoch}:%{version}-%{release}
 Requires:    %{name}-common = %{epoch}:%{version}-%{release}
-Obsoletes:   grub2-tools < %{evr}
+Obsoletes:   %{name}-tools < %{evr}
 
 %description tools-extra
 Support tools for GRUB.
@@ -148,6 +150,8 @@ This subpackage provides the GRUB user-space emulation modules.
 mkdir grub-%{grubefiarch}-%{tarversion}
 grep -A100000 '# stuff "make" creates' .gitignore > grub-%{grubefiarch}-%{tarversion}/.gitignore
 cp %{SOURCE4} grub-%{grubefiarch}-%{tarversion}/unifont.pcf.gz
+sed -e "s,@@VERSION@@,%{version},g" -e "s,@@VERSION_RELEASE@@,%{version}-%{release},g" \
+    %{SOURCE13} > grub-%{grubefiarch}-%{tarversion}/sbat.csv
 git add grub-%{grubefiarch}-%{tarversion}
 %endif
 %if 0%{with_alt_efi_arch}
@@ -228,6 +232,7 @@ strip kernel.exec
 strip lnxboot.image
 popd
 %endif
+%{expand:%%do_install_protected_file %{name}-tools-minimal}
 
 %find_lang grub
 
@@ -378,6 +383,7 @@ fi
 %{_bindir}/%{name}-editenv
 %{_bindir}/%{name}-mkpasswd-pbkdf2
 %{_bindir}/%{name}-mount
+%attr(0644,root,root) %config(noreplace) /etc/dnf/protected.d/%{name}-tools-minimal.conf
 
 %files tools-extra
 %defattr(-,root,root)
@@ -426,6 +432,12 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Fri Mar 25 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.06-4
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:enable sbat and don't verify kernels twice
+
 * Thu Mar 24 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.06-3
 - Type:bugfix
 - CVE:NA
