@@ -19,12 +19,13 @@
 		-e 's/-O. //g'					\\\
 		-e 's/-g /-g3 /g'				\\\
 		-e 's/-fplugin=annobin //g'			\\\
-		-e 's,-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1 ,,g' \\\
+		-e 's,-specs=[[:alnum:]/_-]*annobin[[:alnum:]_-]* ,,g' \\\
 		-e 's/-fstack-protector[[:alpha:]-]\\+//g'	\\\
 		-e 's/-Wp,-D_FORTIFY_SOURCE=[[:digit:]]\\+//g'	\\\
 		-e 's/--param=ssp-buffer-size=4//g'		\\\
 		-e 's/-mregparm=3/-mregparm=4/g'		\\\
 		-e 's/-fexceptions//g'				\\\
+		-e 's/-fcf-protection//g'			\\\
 		-e 's/-fasynchronous-unwind-tables//g'		\\\
 		-e 's/^/ -fno-strict-aliasing /'		\\\
 		%{nil}
@@ -49,6 +50,7 @@
 
 %global ldflags_sed						\\\
 	sed							\\\
+		-e 's,-specs=[[:alnum:]/_-]*annobin[[:alnum:]_-]* ,,g' \\\
 		-e 's/^$//'					\\\
 		%{nil}
 
@@ -116,7 +118,7 @@
 %ifarch aarch64 %{arm}
 %global efi_modules " "
 %else
-%global efi_modules " backtrace chain usb usbserial_common usbserial_pl2303 usbserial_ftdi usbserial_usbdebug "
+%global efi_modules " backtrace chain tpm usb usbserial_common usbserial_pl2303 usbserial_ftdi usbserial_usbdebug keylayouts at_keyboard "
 %endif
 
 %ifarch aarch64 %{arm}
@@ -353,6 +355,7 @@ sh bootstrap							\
     %{cc_equals}						\\\
     HOST_CFLAGS="%{3} -I$(pwd)"					\\\
     HOST_CPPFLAGS="${CPPFLAGS} -I$(pwd)"			\\\
+    HOST_LDFLAGS="%{efi_host_ldflags}"			\\\
     TARGET_CFLAGS="%{2} -I$(pwd)"				\\\
     TARGET_CPPFLAGS="${CPPFLAGS} -I$(pwd)"			\\\
     TARGET_LDFLAGS="%{efi_target_ldflags}"			\\\
@@ -381,12 +384,22 @@ for x in grub-mkimage ; do					\\\
 done								\
 %{nil}
 
+%define do_install_protected_file()				\
+touch %{1}.conf							\
+echo %{1} > %{1}.conf						\
+install -d -m 755 ${RPM_BUILD_ROOT}/etc/dnf/protected.d/	\
+install -m 644 %{1}.conf ${RPM_BUILD_ROOT}/etc/dnf/protected.d/ \
+rm -f %{1}.conf							\
+%{nil}
+
 %ifarch x86_64 aarch64 %{arm}
 %define mkimage()						\
 %{4}./grub-mkimage -O %{1} -o %{2}.orig				\\\
-	-p /EFI/%{efi_vendor} -d grub-core ${GRUB_MODULES}	\
+	-p /EFI/%{efi_vendor} -d grub-core ${GRUB_MODULES}	\\\
+	--sbat %{4}./sbat.csv					\
 %{4}./grub-mkimage -O %{1} -o %{3}.orig				\\\
-	-p /EFI/BOOT -d grub-core ${GRUB_MODULES}		\
+	-p /EFI/BOOT -d grub-core ${GRUB_MODULES}		\\\
+	--sbat %{4}./sbat.csv					\
 install -m 700 %{2}.orig %{2}	\
 install -m 700 %{3}.orig %{3}	\
 %{nil}
@@ -402,18 +415,18 @@ install -m 700 %{3}.orig %{3}	\
 %define do_efi_build_images()					\
 GRUB_MODULES="	all_video boot blscfg btrfs			\\\
 		cat configfile cryptodisk			\\\
-		echo efi_netfs efifwsetup efinet ext2		\\\
+		echo efi_netfs efifwsetup efinet ext2 f2fs	\\\
 		fat font gcry_rijndael gcry_rsa gcry_serpent 	\\\
 		gcry_sha256 gcry_twofish gcry_whirlpool   	\\\
 		gfxmenu gfxterm gzio				\\\
 		halt hfsplus http increment iso9660 jpeg	\\\
 		loadenv loopback linux lvm lsefi lsefimmap luks	\\\
-		mdraid09 mdraid1x minicmd net			\\\
+		luks2 mdraid09 mdraid1x minicmd net		\\\
 		normal part_apple part_msdos part_gpt		\\\
 		password_pbkdf2 pgp png reboot			\\\
 		regexp search search_fs_uuid search_fs_file	\\\
 		search_label serial sleep syslinuxcfg test tftp	\\\
-		version video xfs"				\
+		version video xfs zstd "			\
 GRUB_MODULES+=%{efi_modules}					\
 %{expand:%%{mkimage %{1} %{2} %{3} %{4}}}			\
 %{nil}
@@ -441,6 +454,7 @@ cd grub-%{1}-%{tarversion}					\
     %{cc_equals}						\\\
     HOST_CFLAGS="%{legacy_host_cflags} -I$(pwd) "		\\\
     HOST_CPPFLAGS="-I$(pwd)"					\\\
+    HOST_LDFLAGS="%{legacy_host_ldflags}"			\\\
     TARGET_CFLAGS="%{legacy_target_cflags} -I$(pwd) "		\\\
     TARGET_CPPFLAGS="-I$(pwd)"					\\\
     TARGET_LDFLAGS="%{legacy_target_ldflags}"			\\\
@@ -460,6 +474,9 @@ cd ..								\
 cd grub-emu-%{tarversion}					\
 %configure							\\\
 	%{cc_equals}						\\\
+	HOST_CFLAGS="%{legacy_host_cflags}"			\\\
+	HOST_CPPFLAGS="-I$(pwd)"				\\\
+	HOST_LDFLAGS="%{legacy_host_ldflags}"			\\\
 	--with-platform=emu					\\\
 	--with-grubdir=%{name}					\\\
 	--program-transform-name=s,grub,%{name},		\\\
@@ -488,6 +505,7 @@ find . '(' -iname gdb_grub					\\\
 find $RPM_BUILD_ROOT -type f -iname "*.mod*" -exec chmod a-x {} '\;'	\
 install -m 700 %{2} $RPM_BUILD_ROOT%{efi_esp_dir}/%{2}	\
 install -m 700 %{3} $RPM_BUILD_ROOT%{efi_esp_dir}/%{3} \
+%{expand:%%do_install_protected_file %{name}-%{alt_package_arch}} \
 cd ..								\
 %{nil}
 
@@ -510,6 +528,7 @@ install -D -m 700 unicode.pf2					\\\
 	$RPM_BUILD_ROOT%{efi_esp_dir}/fonts/unicode.pf2		\
 ${RPM_BUILD_ROOT}/%{_bindir}/%{name}-editenv			\\\
 	${RPM_BUILD_ROOT}%{efi_esp_dir}/grubenv create		\
+%{expand:%%do_install_protected_file %{name}-%{package_arch}}	\
 cd ..								\
 %{nil}
 
@@ -532,6 +551,7 @@ if [ %{3} -eq 0 ]; then						\
 	${RPM_BUILD_ROOT}/%{_bindir}/%{name}-editenv		\\\
 		${RPM_BUILD_ROOT}/boot/%{name}/grubenv create	\
 fi								\
+%{expand:%%do_install_protected_file %{name}-%{legacy_package_arch}} \
 cd ..								\
 %{nil}
 
@@ -579,6 +599,7 @@ touch ${RPM_BUILD_ROOT}/boot/%{name}/grub.cfg			\
 %config(noreplace) %{_sysconfdir}/%{name}.cfg			\
 %ghost %config(noreplace) /boot/%{name}/grub.cfg		\
 %dir %attr(0700,root,root)/boot/loader/entries			\
+%attr(0644,root,root) %config(noreplace) /etc/dnf/protected.d/%{name}-%{1}.conf \
 								\
 %{expand:%if 0%{?with_legacy_modules}				\
 %{expand:%%files %{1}-modules}					\
@@ -602,6 +623,7 @@ touch ${RPM_BUILD_ROOT}/boot/%{name}/grub.cfg			\
 %dir %attr(0700,root,root)/boot/loader/entries			\
 %ghost %config(noreplace) %attr(0700,root,root)%{efi_esp_dir}/grub.cfg	\
 %ghost %config(noreplace) %attr(0700,root,root)%{efi_esp_dir}/grubenv	\
+%attr(0644,root,root) %config(noreplace) /etc/dnf/protected.d/%{name}-%{1}.conf \
 %{expand:%if 0%{?without_efi_modules}				\
 %exclude %{_libdir}/grub/%{6}					\
 %exclude %{_libdir}/grub/%{6}/*					\
