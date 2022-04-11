@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	22
+Release:	23
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -188,6 +188,9 @@ popd
 
 %install
 set -e
+%ifarch loongarch64
+%define _unpackaged_files_terminate_build 0
+%endif
 
 %do_common_install
 %if 0%{with_efi_arch}
@@ -444,12 +447,21 @@ rm -r /boot/grub2.tmp/ || :
 %exclude %{_libdir}/grub/%{emuarch}-emu/*.module
 %endif
 
+%ifnarch loongarch64
 %files           help
 %defattr(-,root,root)
 %doc INSTALL NEWS README THANKS TODO docs/grub.html docs/grub-dev.html docs/font_char_metrics.png
 %{_datadir}/man/man*
+%endif
 
 %changelog
+* Thu Apr 7 2022  yangqiming<yangqiming@loongson.cn> - 2.04-23
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:Add loongarch64 support
+
+
 * Sat Feb 26 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.04-22
 - Type:bugfix
 - CVE:NA
@@ -583,7 +595,7 @@ rm -r /boot/grub2.tmp/ || :
 * Fri Apr 24 2020 fengtao <fengtao40@huawei.com> - 2.02-74
 - exclude two cmd in grub2-tools
 
-* Wed Mar 3 2020 songnannan <songnannan2@huawei.com> - 2.02-73
+* Tue Mar 3 2020 songnannan <songnannan2@huawei.com> - 2.02-73
 - delete java-1.8.0-openjdk in buildrequires
 
 * Thu Feb 20 2020 openEuler Buildteam <buildteam@openeuler.org> - 2.02-72

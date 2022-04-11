@@ -95,7 +95,7 @@
 %endif
 
 
-%global efi_only aarch64 %{arm}
+%global efi_only aarch64 %{arm} loongarch64
 %global efi_arch x86_64 ia64 %{efi_only}
 %ifarch %{efi_arch}
 %global with_efi_arch 1
@@ -113,7 +113,7 @@
 %{?with_efi_only:%global without_efi_only 1}
 
 ### fixme
-%ifarch aarch64 %{arm}
+%ifarch aarch64 %{arm} loongarch64
 %global efi_modules " "
 %else
 %global efi_modules " backtrace chain usb usbserial_common usbserial_pl2303 usbserial_ftdi usbserial_usbdebug "
@@ -178,6 +178,14 @@
 		-e 's/-mfpu=[[:alnum:]-]\\+//g'				\\\
 		-e 's/-mfloat-abi=[[:alpha:]]\\+/-mfloat-abi=soft/g'	\\\
 	)}
+%endif
+
+%ifarch loongarch64
+%global with_emu_arch 0
+%global efiarch loongarch64
+%global target_cpu_name loongarch64
+%global grub_target_name loongarch64-efi
+%global package_arch efi-loongarch64
 %endif
 
 %global _target_platform %{target_cpu_name}-%{_vendor}-%{_target_os}%{?_gnu}
