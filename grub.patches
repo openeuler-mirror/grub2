@@ -203,3 +203,4 @@ Patch0202: grub2-set-password-prompts-to-enter-the-current-pass.patch
 Patch0203: support-TPM2.0.patch
 Patch0204: use-default-timestamp.patch
 Patch0205: 0205-fix-setupmode-not-available-in-some-machine.patch
+Patch0206: 0206-remove-08_fallback_counting.in-apply-grubby.patch

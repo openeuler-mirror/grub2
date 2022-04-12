@@ -69,7 +69,7 @@
 %global with_efi_arch 0
 %global with_alt_efi_arch 0
 %global with_legacy_arch 0
-%global with_emu_arch 1
+%global with_emu_arch 0
 %global emuarch %{_arch}
 %global grubefiarch %{nil}
 %global grublegacyarch %{nil}
