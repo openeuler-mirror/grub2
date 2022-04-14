@@ -354,3 +354,4 @@ Patch0353: backport-0080-misc-Add-parentheses-around-ALIGN_UP-and-ALIGN_DOWN-.pa
 Patch0354: backport-0081-verifiers-Fix-calling-uninitialized-function-pointer.patch
 Patch0355: backport-templates-Fix-bad-test-on-GRUB_DISABLE_SUBMENU.patch
 Patch0356: 0251-Add-loongarch64-support.patch
+Patch0357: 0252-LoongArch64-support-boot-parameter-01002-version.patch
