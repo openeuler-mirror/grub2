@@ -188,7 +188,6 @@ Patch0187: 0187-efinet-Add-DHCP-proxy-support.patch
 Patch0188: 0188-fs-ext2-Ignore-checksum-seed-incompat-feature.patch
 Patch0189: 0189-Don-t-update-the-cmdline-when-generating-legacy-menu.patch
 Patch0190: 0190-Suppress-gettext-error-message.patch
-Patch0191: 0191-grub-set-password-Always-use-boot-grub2-user.cfg-as-.patch
 Patch0192: 0192-templates-Check-for-EFI-at-runtime-instead-of-config.patch
 Patch0193: 0193-efi-Print-an-error-if-boot-to-firmware-setup-is-not-.patch
 Patch0194: 0194-arm64-Fix-EFI-loader-kernel-image-allocation.patch
