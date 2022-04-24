@@ -14,7 +14,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.06
-Release:	6
+Release:	7
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -348,7 +348,11 @@ fi
 %attr(0644,root,root) %ghost %config(noreplace) %{_sysconfdir}/default/grub
 %{_sysconfdir}/grub.d/README
 %{_userunitdir}/*
-%{_unitdir}/*
+%{_unitdir}/grub-boot-indeterminate.service
+%{_unitdir}/system-update.target.wants
+%attr(0644,root,root) %{_unitdir}/%{name}-systemd-integration.service
+%dir %{_unitdir}/systemd-logind.service.d
+%attr(0644,root,root) %{_unitdir}/systemd-logind.service.d/*
 %{_datarootdir}/grub/*
 %{_datarootdir}/bash-completion/completions/grub
 %exclude %{_datarootdir}/grub/themes
@@ -432,6 +436,13 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Sun Apr 24 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 2.06-7
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:modify the file permissions of grub-boot-indeterminate.service and
+       10-grub2-logind-service.conf to 644
+
 * Wed Jan 12 2022 lvxiaoqian<xiaoqian@nj.iscas.ac.cn> - 2.06-6
 - update grub.macros for riscv
 	
