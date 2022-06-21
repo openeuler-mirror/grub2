@@ -1,0 +1,38 @@
+From ddf47bdb042ab0ea52bc713b5f80cc48543f0469 Mon Sep 17 00:00:00 2001
+From: Glenn Washburn <development@efficientek.com>
+Date: Wed, 12 Jan 2022 20:55:00 -0600
+Subject: util/resolve: Do not read past the end of the array in
+ read_dep_list()
+
+If the last non-NULL byte of "buf" is not a white-space character (such as
+when a read line is longer than the size of "buf"), then "p" will eventually
+point to the byte after the last byte in "buf". After which "p" will be
+dereferenced in the while conditional leading to an out of bounds read. Make
+sure that "p" is inside "buf" before dereferencing it.
+
+Signed-off-by: Glenn Washburn <development@efficientek.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+
+Conflict:NA
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=ddf47bdb042ab0ea52bc713b5f80cc48543f0469
+
+---
+ util/resolve.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/util/resolve.c b/util/resolve.c
+index 3e887d2..5e9afa1 100644
+--- a/util/resolve.c
++++ b/util/resolve.c
+@@ -102,7 +102,7 @@ read_dep_list (FILE *fp)
+       dep_list = dep;
+ 
+       /* Add dependencies.  */
+-      while (*p)
++      while (p < (buf + sizeof (buf)) && *p)
+ 	{
+ 	  struct mod_list *mod;
+ 	  char *name;
+-- 
+cgit v1.1
+

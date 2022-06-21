@@ -1,0 +1,34 @@
+From eff17a6b2d563fe9a0917e048776ed9ce2da4b80 Mon Sep 17 00:00:00 2001
+From: Darren Kenny <darren.kenny@oracle.com>
+Date: Tue, 26 Oct 2021 15:02:36 +0000
+Subject: util/grub-mkrescue: Fix memory leak in write_part()
+
+In the function write_part(), the value of inname is not used beyond
+the grub_util_fopen() call, so it should be freed to avoid leakage.
+
+Fixes: CID 314028
+
+Signed-off-by: Darren Kenny <darren.kenny@oracle.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+
+Conflict: NA
+Reference: https://git.savannah.gnu.org/cgit/grub.git/commit?id=eff17a6b2d563fe9a0917e048776ed9ce2da4b80
+
+---
+ util/grub-mkrescue.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/util/grub-mkrescue.c b/util/grub-mkrescue.c
+index fb4dcc6..59c48b1 100644
+--- a/util/grub-mkrescue.c
++++ b/util/grub-mkrescue.c
+@@ -229,6 +229,7 @@ write_part (FILE *f, const char *srcdir)
+   char *inname = grub_util_path_concat (2, srcdir, "partmap.lst");
+   char buf[260];
+   in = grub_util_fopen (inname, "rb");
++  free (inname);
+   if (!in)
+     return;
+   while (fgets (buf, 256, in))
+-- 
+cgit v1.1

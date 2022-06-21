@@ -1,0 +1,45 @@
+From 53f08de12bfdd10207a8e6a062c9778f5ab6df87 Mon Sep 17 00:00:00 2001
+From: Darren Kenny <darren.kenny@oracle.com>
+Date: Tue, 26 Oct 2021 15:02:37 +0000
+Subject: util/grub-fstest: Fix resource leaks in cmd_cmp()
+
+In the function cmd_cmp() within the while loop, srcnew and destnew are
+being allocated but are never freed either before leaving scope or in
+the recursive calls being made to cmd_cmp().
+
+Fixes: CID 314032
+Fixes: CID 314045
+
+Signed-off-by: Darren Kenny <darren.kenny@oracle.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+
+Conflict: NA
+Reference: https://git.savannah.gnu.org/cgit/grub.git/commit?id=53f08de12bfdd10207a8e6a062c9778f5ab6df87
+
+---
+ util/grub-fstest.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/util/grub-fstest.c b/util/grub-fstest.c
+index 8386564..486f1dc 100644
+--- a/util/grub-fstest.c
++++ b/util/grub-fstest.c
+@@ -300,9 +300,15 @@ cmd_cmp (char *src, char *dest)
+ 	  strcpy (ptr, entry->d_name);
+ 
+ 	  if (grub_util_is_special_file (destnew))
+-	    continue;
++	    {
++	      free (srcnew);
++	      free (destnew);
++	      continue;
++	    }
+ 
+ 	  cmd_cmp (srcnew, destnew);
++	  free (srcnew);
++	  free (destnew);
+ 	}
+       grub_util_fd_closedir (dir);
+       return;
+-- 
+cgit v1.1
