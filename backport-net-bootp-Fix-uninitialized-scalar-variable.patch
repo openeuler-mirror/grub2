@@ -1,0 +1,38 @@
+From 23c3cbe1dba4fd0c6dc8156bd628d3162e63408d Mon Sep 17 00:00:00 2001
+From: Alec Brown <alec.r.brown@oracle.com>
+Date: Mon, 21 Mar 2022 02:29:02 -0400
+Subject: net/bootp: Fix uninitialized scalar variable
+
+In the function grub_net_configure_by_dhcp_ack(),
+grub_net_network_level_address_t addr is called but isn't being initialized.
+This results in the member grub_dns_option_t option being filled with junk data
+from the stack. To prevent this, we can set the option member in addr to 0.
+
+Fixes: CID 375036
+
+Signed-off-by: Alec Brown <alec.r.brown@oracle.com>
+Reviewed-by: Darren Kenny <darren.kenny@oracle.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+
+Conflict:NA
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=23c3cbe1dba4fd0c6dc8156bd628d3162e63408d
+
+---
+ grub-core/net/bootp.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/grub-core/net/bootp.c b/grub-core/net/bootp.c
+index 8dc1479..7d31dba 100644
+--- a/grub-core/net/bootp.c
++++ b/grub-core/net/bootp.c
+@@ -244,6 +244,7 @@ grub_net_configure_by_dhcp_ack (const char *name,
+ 
+   addr.type = GRUB_NET_NETWORK_LEVEL_PROTOCOL_IPV4;
+   addr.ipv4 = bp->your_ip;
++  addr.option = 0;
+ 
+   if (device)
+     *device = 0;
+-- 
+cgit v1.1
+
