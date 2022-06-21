@@ -1,0 +1,35 @@
+From 57a393ca59b3358aec61af10edbc79d8c366e5e4 Mon Sep 17 00:00:00 2001
+From: Glenn Washburn <development@efficientek.com>
+Date: Tue, 12 Oct 2021 19:39:55 -0500
+Subject: tests: Fix partmap_test for arm*-efi, disk numbering has changed
+
+Perhaps using a newer UEFI firmware is the reason for the created test disk
+showing up as hd2 instead of hd3.
+
+Conflict:NA
+Reference:http://git.savannah.gnu.org/cgit/grub.git/patch/tests/partmap_test.in?id=57a393ca59b3358aec61af10edbc79d8c366e5e4
+
+Signed-off-by: Glenn Washburn <development@efficientek.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ tests/partmap_test.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+(limited to 'tests/partmap_test.in')
+
+diff --git a/tests/partmap_test.in b/tests/partmap_test.in
+index 6ef518b..7353dc7 100644
+--- a/tests/partmap_test.in
++++ b/tests/partmap_test.in
+@@ -89,7 +89,7 @@ case "${grub_modinfo_target_cpu}-${grub_modinfo_platform}" in
+ 	disk=arc/scsi0/disk0/rdisk0
+ 	;;
+     arm*-efi)
+-	disk=hd3
++	disk=hd2
+ 	;;
+     *)
+ 	disk=hd0
+-- 
+cgit v1.1
+

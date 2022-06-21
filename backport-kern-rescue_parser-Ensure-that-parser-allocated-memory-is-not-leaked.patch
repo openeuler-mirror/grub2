@@ -1,0 +1,66 @@
+From 62f0489aff002a44a72d390b42fc571e91378838 Mon Sep 17 00:00:00 2001
+From: Darren Kenny <darren.kenny@oracle.com>
+Date: Wed, 16 Mar 2022 17:25:05 +0000
+Subject: kern/rescue_parser: Ensure that parser allocated memory is not leaked
+
+While it would appear unlikely that the memory allocated in *argv in
+grub_parser_split_cmdline() would be leaked, we should try ensure that
+it doesn't leak by calling grub_free() before we return from
+grub_rescue_parse_line().
+
+To avoid a possible double-free, grub_parser_split_cmdline() is being
+changed to assign *argv = NULL when we've called grub_free() in the fail
+section.
+
+Fixes: CID 96680
+
+Signed-off-by: Darren Kenny <darren.kenny@oracle.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+
+Conflict:NA
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=62f0489aff002a44a72d390b42fc571e91378838
+
+---
+ grub-core/kern/parser.c        |  2 ++
+ grub-core/kern/rescue_parser.c | 10 ++++++++--
+ 2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/grub-core/kern/parser.c b/grub-core/kern/parser.c
+index 6ab7aa4..9b7b31a 100644
+--- a/grub-core/kern/parser.c
++++ b/grub-core/kern/parser.c
+@@ -298,6 +298,8 @@ grub_parser_split_cmdline (const char *cmdline,
+ 
+  fail:
+   grub_free (*argv);
++  *argv = NULL;
++  *argc = 0;
+   goto out;
+ }
+ 
+diff --git a/grub-core/kern/rescue_parser.c b/grub-core/kern/rescue_parser.c
+index 6338366..799641a 100644
+--- a/grub-core/kern/rescue_parser.c
++++ b/grub-core/kern/rescue_parser.c
+@@ -36,10 +36,16 @@ grub_rescue_parse_line (char *line,
+ 
+   if (grub_parser_split_cmdline (line, getline, getline_data, &n, &args)
+       || n < 0)
+-    return grub_errno;
++    {
++      grub_free(args);
++      return grub_errno;
++    }
+ 
+   if (n == 0)
+-    return GRUB_ERR_NONE;
++    {
++      grub_free(args);
++      return GRUB_ERR_NONE;
++    }
+ 
+   /* In case of an assignment set the environment accordingly
+      instead of calling a function.  */
+-- 
+cgit v1.1
+

@@ -1,0 +1,65 @@
+From ebf32bc4e9561800b9fda59560277cbee6302643 Mon Sep 17 00:00:00 2001
+From: Alec Brown <alec.r.brown@oracle.com>
+Date: Wed, 2 Feb 2022 19:08:21 -0500
+Subject: fs/affs: Fix resource leaks
+
+In commit 178ac5107389 (affs: Fix memory leaks), fixes were made to
+grub_affs_iterate_dir() to prevent memory leaks from occurring after it
+returns without freeing node. However, there were still some instances
+where node was causing a memory leak when the function returns after
+calling grub_affs_create_node(). In this function, new memory is
+allocated to node but doesn't get freed until the hook() function is
+called near the end. Before hook() is called, node should be freed in
+grub_affs_create_node() before returning out of it.
+
+Fixes: 178ac5107389 (affs: Fix memory leaks)
+Fixes: CID 73759
+
+Signed-off-by: Alec Brown <alec.r.brown@oracle.com>
+Reviewed-by: Darren Kenny <darren.kenny@oracle.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+
+Conflict:NA
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=ebf32bc4e9561800b9fda59560277cbee6302643
+
+---
+ grub-core/fs/affs.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/grub-core/fs/affs.c b/grub-core/fs/affs.c
+index cafcd0f..7b9e620 100644
+--- a/grub-core/fs/affs.c
++++ b/grub-core/fs/affs.c
+@@ -370,17 +370,26 @@ grub_affs_create_node (grub_fshelp_node_t dir,
+ 				  GRUB_DISK_SECTOR_SIZE - GRUB_AFFS_FILE_LOCATION,
+ 				  sizeof ((*node)->di), (char *) &(*node)->di);
+ 	    if (err)
+-	      return 1;
++	      {
++		grub_free (*node);
++		return 1;
++	      }
+ 	    continue;
+ 	  }
+ 	default:
+-	  return 0;
++	  {
++	    grub_free (*node);
++	    return 0;
++	  }
+ 	}
+       break;
+     }
+ 
+   if (nest == 8)
+-    return 0;
++    {
++      grub_free (*node);
++      return 0;
++    }
+ 
+   type |= GRUB_FSHELP_CASE_INSENSITIVE;
+ 
+-- 
+cgit v1.1
+
