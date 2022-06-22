@@ -1,0 +1,60 @@
+From 8922ea771163655f1d5dc8da589a6291976ae489 Mon Sep 17 00:00:00 2001
+From: zhouyihang <zhouyihang3@huawei.com>
+Date: Thu, 10 Jun 2021 20:01:54 +0800
+Subject: [PATCH] huawei use default timestamp
+
+Conflict:NA
+Reference:https://gitee.com/src-openeuler/grub2/commit/31e72c6b0a7d65b904afa2cb77e4e633cafacc6e.patch
+
+---
+ docs/grub-dev.texi | 4 ++--
+ docs/grub.texi     | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/docs/grub-dev.texi b/docs/grub-dev.texi
+index f488e82..355764a 100644
+--- a/docs/grub-dev.texi
++++ b/docs/grub-dev.texi
+@@ -18,7 +18,7 @@
+ 
+ @copying
+ This developer manual is for GNU GRUB (version @value{VERSION},
+-@value{UPDATED}).
++24 June 2019).
+ 
+ Copyright @copyright{} 1999,2000,2001,2002,2004,2005,2006,2008,2009,2010,2011 Free Software Foundation, Inc.
+ 
+@@ -40,7 +40,7 @@ Invariant Sections.
+ @titlepage
+ @sp 10
+ @title the GNU GRUB developer manual
+-@subtitle The GRand Unified Bootloader, version @value{VERSION}, @value{UPDATED}.
++@subtitle The GRand Unified Bootloader, version @value{VERSION}, 24 June 2019.
+ @author Yoshinori K. Okuji
+ @author Colin D Bennett
+ @author Vesa Jääskeläinen
+diff --git a/docs/grub.texi b/docs/grub.texi
+index 262388c..41c1a89 100644
+--- a/docs/grub.texi
++++ b/docs/grub.texi
+@@ -18,7 +18,7 @@
+ 
+ @copying
+ This manual is for GNU GRUB (version @value{VERSION},
+-@value{UPDATED}).
++24 June 2019).
+ 
+ Copyright @copyright{} 1999,2000,2001,2002,2004,2006,2008,2009,2010,2011,2012,2013 Free Software Foundation, Inc.
+ 
+@@ -48,7 +48,7 @@ Invariant Sections.
+ @titlepage
+ @sp 10
+ @title the GNU GRUB manual
+-@subtitle The GRand Unified Bootloader, version @value{VERSION}, @value{UPDATED}.
++@subtitle The GRand Unified Bootloader, version @value{VERSION}, 24 June 2019.
+ @author Gordon Matzigkeit
+ @author Yoshinori K. Okuji
+ @author Colin Watson
+-- 
+2.27.0
+
