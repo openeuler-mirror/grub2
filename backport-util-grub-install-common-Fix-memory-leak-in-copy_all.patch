@@ -1,0 +1,38 @@
+From e07fcea291ac8aa430db6e57d6e8e08894127fe2 Mon Sep 17 00:00:00 2001
+From: Darren Kenny <darren.kenny@oracle.com>
+Date: Tue, 26 Oct 2021 15:02:35 +0000
+Subject: util/grub-install-common: Fix memory leak in copy_all()
+
+The copy_all() function skips a section of code using continue, but
+fails to free the memory in srcf first, leaking it.
+
+Fixes: CID 314026
+
+Signed-off-by: Darren Kenny <darren.kenny@oracle.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+
+Conflict: NA
+Reference: https://git.savannah.gnu.org/cgit/grub.git/commit?id=e07fcea291ac8aa430db6e57d6e8e08894127fe2
+
+---
+ util/grub-install-common.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/util/grub-install-common.c b/util/grub-install-common.c
+index 4e212e6..fe77e39 100644
+--- a/util/grub-install-common.c
++++ b/util/grub-install-common.c
+@@ -754,7 +754,10 @@ copy_all (const char *srcd,
+       srcf = grub_util_path_concat (2, srcd, de->d_name);
+       if (grub_util_is_special_file (srcf)
+ 	  || grub_util_is_directory (srcf))
+-	continue;
++	{
++	  free (srcf);
++	  continue;
++	}
+       dstf = grub_util_path_concat (2, dstd, de->d_name);
+       grub_install_compress_file (srcf, dstf, 1);
+       free (srcf);
+-- 
+cgit v1.1

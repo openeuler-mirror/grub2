@@ -1,0 +1,35 @@
+From 29d44a236a5e939b8ff24e6c31141d5b1e48f693 Mon Sep 17 00:00:00 2001
+From: Darren Kenny <darren.kenny@oracle.com>
+Date: Tue, 26 Oct 2021 15:02:40 +0000
+Subject: io/gzio: Fix possible use of uninitialized variable in huft_build()
+
+In huft_build() it is possible to reach the for loop where "r" is being
+assigned to "q[j]" without "r.v" ever being initialized.
+
+Fixes: CID 314024
+
+Signed-off-by: Darren Kenny <darren.kenny@oracle.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+
+Conflict: NA
+Reference: https://git.savannah.gnu.org/cgit/grub.git/commit?id=29d44a236a5e939b8ff24e6c31141d5b1e48f693
+
+---
+ grub-core/io/gzio.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/grub-core/io/gzio.c b/grub-core/io/gzio.c
+index aea86a0..10156e5 100644
+--- a/grub-core/io/gzio.c
++++ b/grub-core/io/gzio.c
+@@ -447,7 +447,7 @@ huft_build (unsigned *b,	/* code lengths in bits (all assumed <= BMAX) */
+   int l;			/* bits per table (returned in m) */
+   register unsigned *p;		/* pointer into c[], b[], or v[] */
+   register struct huft *q;	/* points to current table */
+-  struct huft r;		/* table entry for structure assignment */
++  struct huft r = {0};		/* table entry for structure assignment */
+   struct huft *u[BMAX];		/* table stack */
+   unsigned v[N_MAX];		/* values in order of bit length */
+   register int w;		/* bits before this table == (l * h) */
+-- 
+cgit v1.1
