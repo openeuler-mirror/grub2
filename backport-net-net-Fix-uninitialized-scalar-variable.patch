@@ -1,0 +1,38 @@
+From 8e9e0d4643020b340839b7f428f7b9ca6a2129d8 Mon Sep 17 00:00:00 2001
+From: Alec Brown <alec.r.brown@oracle.com>
+Date: Mon, 21 Mar 2022 02:29:00 -0400
+Subject: net/net: Fix uninitialized scalar variable
+
+In the function grub_net_ipv6_get_link_local(), grub_net_network_level_address_t
+addr is called but isn't being initialized. This results in the member
+grub_dns_option_t option being filled with junk data from the stack. We can
+prevent this by setting the option member in addr to 0.
+
+Fixes: CID 375033
+
+Signed-off-by: Alec Brown <alec.r.brown@oracle.com>
+Reviewed-by: Darren Kenny <darren.kenny@oracle.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+
+Conflict:NA
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=8e9e0d4643020b340839b7f428f7b9ca6a2129d8
+
+---
+ grub-core/net/net.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/grub-core/net/net.c b/grub-core/net/net.c
+index 11b3987..681f914 100644
+--- a/grub-core/net/net.c
++++ b/grub-core/net/net.c
+@@ -292,6 +292,7 @@ grub_net_ipv6_get_link_local (struct grub_net_card *card,
+   addr.type = GRUB_NET_NETWORK_LEVEL_PROTOCOL_IPV6;
+   addr.ipv6[0] = grub_cpu_to_be64_compile_time (0xfe80ULL << 48);
+   addr.ipv6[1] = grub_net_ipv6_get_id (hwaddr);
++  addr.option = 0;
+ 
+   FOR_NET_NETWORK_LEVEL_INTERFACES (inf)
+   {
+-- 
+cgit v1.1
+

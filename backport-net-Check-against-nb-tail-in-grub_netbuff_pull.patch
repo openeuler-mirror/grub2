@@ -1,0 +1,64 @@
+From e976dc27f88968bc768224fd8102a508a3a39383 Mon Sep 17 00:00:00 2001
+From: Daniel Axtens <dja@axtens.net>
+Date: Sat, 5 Mar 2022 00:39:04 +1100
+Subject: net: Check against nb->tail in grub_netbuff_pull()
+
+GRUB netbuff structure members track 2 different things: the extent of memory
+allocated for the packet, and the extent of memory currently being worked on.
+
+This works out in the structure as follows:
+
+  nb->head: beginning of the allocation
+  nb->data: beginning of the working data
+  nb->tail: end of the working data
+  nb->end:  end of the allocation
+
+The head and end pointers are set in grub_netbuff_alloc() and do not change.
+The data and tail pointers are initialised to point at start of the
+allocation (that is, head == data == tail initially), and are then
+manipulated by grub_netbuff_*() functions. Key functions are as follows:
+
+  - grub_netbuff_put():     "put" more data into the packet - advance nb->tail
+  - grub_netbuff_unput():   trim the tail of the packet - retract nb->tail
+  - grub_netbuff_pull():    "consume" some packet data - advance nb->data
+  - grub_netbuff_reserve(): reserve space for future headers - advance nb->data and nb->tail
+  - grub_netbuff_push():    "un-consume" data to allow headers to be written - retract nb->data
+
+Each of those functions does some form of error checking. For example,
+grub_netbuff_put() does not allow nb->tail to exceed nb->end, and
+grub_netbuff_push() does not allow nb->data to be before nb->head.
+
+However, grub_netbuff_pull()'s error checking is a bit weird. It advances nb->data
+and checks that it does not exceed nb->end. That allows you to get into the
+situation where nb->data > nb->tail, which should not be.
+
+Make grub_netbuff_pull() check against both nb->tail and nb->end. In theory just
+checking against ->tail should be sufficient but the extra check should be
+cheap and seems like good defensive practice.
+
+Signed-off-by: Daniel Axtens <dja@axtens.net>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+
+Conflict:NA
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=e976dc27f88968bc768224fd8102a508a3a39383
+
+---
+ grub-core/net/netbuff.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/grub-core/net/netbuff.c b/grub-core/net/netbuff.c
+index dbeeefe..72e5296 100644
+--- a/grub-core/net/netbuff.c
++++ b/grub-core/net/netbuff.c
+@@ -54,7 +54,7 @@ grub_err_t
+ grub_netbuff_pull (struct grub_net_buff *nb, grub_size_t len)
+ {
+   nb->data += len;
+-  if (nb->data > nb->end)
++  if (nb->data > nb->end || nb->data > nb->tail)
+     return grub_error (GRUB_ERR_BUG,
+ 		       "pull out of the packet range.");
+   return GRUB_ERR_NONE;
+-- 
+cgit v1.1
+
