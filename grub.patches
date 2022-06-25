@@ -207,3 +207,4 @@ Patch0207: backport-grub-core-loader-i386-efi-linux.c-do-not-validate-ke.patch
 Patch0208: backport-grub-core-loader-arm64-linux.c-do-not-validate-kerne.patch
 Patch0209: backport-grub-core-loader-efi-chainloader.c-do-not-validate-c.patch
 Patch0210: backport-grub-core-loader-efi-linux.c-drop-now-unused-grub_li.patch
+Patch0211: backport-fix-null-pointer-dereference-when-paring-ICMP6_ROUTE.patch
