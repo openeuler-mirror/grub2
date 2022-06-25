@@ -1,0 +1,92 @@
+From 354c1679b70fd7f1773ab9bb3fffc7261be42e6b Mon Sep 17 00:00:00 2001
+From: Michael Chang <mchang@suse.com>
+Date: Wed, 22 Feb 2017 14:27:50 +0800
+Subject: [PATCH] enable http and https boot
+
+The patch adapts to the open source code for log printing.
+
+V1:
+  * Add preliminary support of UEFI networking protocols
+  * Support UEFI HTTPS Boot
+ 
+V2:
+  * Workaround http data access in firmware
+  * Fix DNS device path parsing for efinet device
+  * Relaxed UEFI Protocol requirement
+  * Support Intel OPA (Omni-Path Architecture) PXE Boot
+ 
+V3:
+  * Fix bufio in calculating address of next_buf
+  * Check HTTP respond code
+  * Use HEAD request method to test before GET
+  * Finish HTTP transaction in one go
+  * Fix bsc#1076132
+ 
+Reference:https://src.fedoraproject.org/rpms/grub2/blob/f35/f/0095-Support-UEFI-networking-protocols.patch
+Conflict:NA
+
+Signed-off-by: Michael Chang <mchang@suse.com>
+[pjones: make efi_netfs not duplicate symbols from efinet]
+Signed-off-by: Peter Jones <pjones@redhat.com>
+---
+ grub-core/net/efi/http.c | 2 ++
+ grub-core/net/efi/net.c  | 5 +++++
+ include/grub/efi/http.h  | 4 ++--
+ 3 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/grub-core/net/efi/http.c b/grub-core/net/efi/http.c
+index fc8cb25..5dfe165 100644
+--- a/grub-core/net/efi/http.c
++++ b/grub-core/net/efi/http.c
+@@ -187,6 +187,8 @@ efihttp_request (grub_efi_http_t *http, char *server, char *name, int use_https,
+         url = grub_xasprintf ("%s://%s%s", protocol, server, name);
+       }
+ 
++    grub_dprintf ("httpboot", "url: %s\n", url);
++
+     if (!url)
+       {
+ 	return grub_errno;
+diff --git a/grub-core/net/efi/net.c b/grub-core/net/efi/net.c
+index a3f0535..6e3b37f 100644
+--- a/grub-core/net/efi/net.c
++++ b/grub-core/net/efi/net.c
+@@ -795,7 +795,10 @@ match_route (const char *server)
+   err = grub_efi_net_parse_address (server, &ip4, &ip6, &is_ip6, 0);
+ 
+   if (err)
++    {
++      grub_dprintf ("httpboot", "server parse failed, please check!\n");
+       return NULL;
++    }
+ 
+   if (is_ip6)
+     {
+@@ -1227,6 +1230,8 @@ grub_net_open_real (const char *name __attribute__ ((unused)))
+       return NULL;
+     }
+ 
++  grub_dprintf ("httpboot", "server: %s\n", server);
++
+   /*FIXME: Use DNS translate name to address */
+   net_interface = match_route (server);
+ 
+diff --git a/include/grub/efi/http.h b/include/grub/efi/http.h
+index c5e9a89..ad164ba 100644
+--- a/include/grub/efi/http.h
++++ b/include/grub/efi/http.h
+@@ -171,9 +171,9 @@ typedef struct {
+     grub_efi_http_request_data_t *request;
+     grub_efi_http_response_data_t *response;
+   } data;
+-  grub_efi_uint32_t header_count;
++  grub_efi_uintn_t header_count;
+   grub_efi_http_header_t *headers;
+-  grub_efi_uint32_t body_length;
++  grub_efi_uintn_t body_length;
+   void *body;
+ } grub_efi_http_message_t;
+ 
+-- 
+2.23.0
+

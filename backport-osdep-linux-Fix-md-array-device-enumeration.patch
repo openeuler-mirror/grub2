@@ -1,0 +1,91 @@
+From c39f27cd678d61e8e84c1386695a33575c9ded44 Mon Sep 17 00:00:00 2001
+From: Kees Cook <kees@ubuntu.com>
+Date: Thu, 7 Oct 2021 16:33:16 -0700
+Subject: osdep/linux: Fix md array device enumeration
+
+GET_ARRAY_INFO's info.nr_disks does not map to GET_DISK_INFO's
+disk.number, which is an internal kernel index. If an array has had drives
+added, removed, etc., there may be gaps in GET_DISK_INFO's results. But
+since the consumer of devicelist cannot tolerate gaps (it expects to walk
+a NULL-terminated list of device name strings), the devicelist index (j)
+must be tracked separately from the disk.number index (i).
+
+As part of this, since GRUB wants to only examine active (i.e. present
+and non-failed) disks, the count of remaining disks (remaining) must be
+tracked separately from the devicelist index (j).
+
+Additionally, drop a line with empty spaces only.
+
+Fixes: 49de079bbe1c (... (grub_util_raid_getmembers): Handle "removed" disks)
+Fixes: 2b00217369ac (... Added support for RAID and LVM)
+Fixes: https://bugs.launchpad.net/ubuntu/+source/grub2/+bug/1912043
+Fixes: https://savannah.gnu.org/bugs/index.php?59887
+
+Signed-off-by: Kees Cook <kees@ubuntu.com>
+Reviewed-by: Petr Vorel <pvorel@suse.cz>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+
+Conflict: NA
+Reference: https://git.savannah.gnu.org/cgit/grub.git/commit?id=c39f27cd678d61e8e84c1386695a33575c9ded44
+
+---
+ grub-core/osdep/linux/getroot.c | 24 +++++++++++++++++-------
+ 1 file changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/grub-core/osdep/linux/getroot.c b/grub-core/osdep/linux/getroot.c
+index cd58858..df422c6 100644
+--- a/grub-core/osdep/linux/getroot.c
++++ b/grub-core/osdep/linux/getroot.c
+@@ -130,10 +130,20 @@ struct mountinfo_entry
+   char fstype[ESCAPED_PATH_MAX + 1], device[ESCAPED_PATH_MAX + 1];
+ };
+ 
++/*
++ * GET_DISK_INFO nr_disks (total count) does not map to disk.number,
++ * which is an internal kernel index. Instead, do what mdadm does
++ * and keep scanning until we find enough valid disks. The limit is
++ * copied from there, which notes that it is sufficiently high given
++ * that the on-disk metadata for v1.x can only support 1920.
++ */
++#define MD_MAX_DISKS       4096
++
+ static char **
+ grub_util_raid_getmembers (const char *name, int bootable)
+ {
+   int fd, ret, i, j;
++  int remaining;
+   char **devicelist;
+   mdu_version_t version;
+   mdu_array_info_t info;
+@@ -165,22 +175,22 @@ grub_util_raid_getmembers (const char *name, int bootable)
+ 
+   devicelist = xcalloc (info.nr_disks + 1, sizeof (char *));
+ 
+-  for (i = 0, j = 0; j < info.nr_disks; i++)
++  remaining = info.nr_disks;
++  for (i = 0, j = 0; i < MD_MAX_DISKS && remaining > 0; i++)
+     {
+       disk.number = i;
+       ret = ioctl (fd, GET_DISK_INFO, &disk);
+       if (ret != 0)
+ 	grub_util_error (_("ioctl GET_DISK_INFO error: %s"), strerror (errno));
+-      
++
++      /* Skip: MD_DISK_REMOVED slots don't contribute to "remaining" count. */
+       if (disk.state & (1 << MD_DISK_REMOVED))
+ 	continue;
++      remaining--;
+ 
++      /* Only record disks that are actively participating in the array. */
+       if (disk.state & (1 << MD_DISK_ACTIVE))
+-	devicelist[j] = grub_find_device (NULL,
+-					  makedev (disk.major, disk.minor));
+-      else
+-	devicelist[j] = NULL;
+-      j++;
++        devicelist[j++] = grub_find_device (NULL, makedev (disk.major, disk.minor));
+     }
+ 
+   devicelist[j] = NULL;
+-- 
+cgit v1.1

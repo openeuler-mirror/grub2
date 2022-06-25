@@ -1,0 +1,45 @@
+From 30858eb59aff0e77b35dd5847375aab5cc3a8782 Mon Sep 17 00:00:00 2001
+From: Heinrich Schuchardt <xypron.glpk@gmx.de>
+Date: Fri, 29 Jan 2021 16:32:29 +0100
+Subject: efi: The device-tree must be in EfiACPIReclaimMemory
+
+According to the Embedded Base Boot Requirements (EBBR) specification the
+device-tree passed to Linux as a configuration table must reside in
+EfiACPIReclaimMemory.
+
+Signed-off-by: Heinrich Schuchardt <xypron.glpk@gmx.de>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+Conflict: static void *loaded_fdt; -> GRUB_MOD_LICENSE ("GPLv3+");
+Reference:https://git.savannah.gnu.org/cgit/grub.git/patch/?id=30858eb59aff0e77b35dd5847375aab5cc3a8782
+
+---
+ grub-core/loader/efi/fdt.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/grub-core/loader/efi/fdt.c b/grub-core/loader/efi/fdt.c
+index 003d07cd8..c86f283d7 100644
+--- a/grub-core/loader/efi/fdt.c
++++ b/grub-core/loader/efi/fdt.c
+@@ -25,6 +25,7 @@
+ #include <grub/efi/efi.h>
+ #include <grub/efi/fdtload.h>
+ #include <grub/efi/memory.h>
++#include <grub/cpu/efi/memory.h>
+ 
+ GRUB_MOD_LICENSE ("GPLv3+");
+
+@@ -60,7 +61,10 @@ grub_fdt_load (grub_size_t additional_size)
+   size += additional_size;
+ 
+   grub_dprintf ("linux", "allocating %d bytes for fdt\n", size);
+-  fdt = grub_efi_allocate_any_pages (GRUB_EFI_BYTES_TO_PAGES (size));
++  fdt = grub_efi_allocate_pages_real (GRUB_EFI_MAX_USABLE_ADDRESS,
++				      GRUB_EFI_BYTES_TO_PAGES (size),
++				      GRUB_EFI_ALLOCATE_MAX_ADDRESS,
++				      GRUB_EFI_ACPI_RECLAIM_MEMORY);
+   if (!fdt)
+     return NULL;
+ 
+-- 
+cgit v1.2.1
+
