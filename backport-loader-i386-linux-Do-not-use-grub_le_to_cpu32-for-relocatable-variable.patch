@@ -1,0 +1,36 @@
+From 8fcfd1e0fc72d58766ce3dc09cf883c032f063f6 Mon Sep 17 00:00:00 2001
+From: Tianjia Zhang <tianjia.zhang@linux.alibaba.com>
+Date: Mon, 11 Jan 2021 11:04:36 +0800
+Subject: loader/i386/linux: Do not use grub_le_to_cpu32() for relocatable
+ variable
+
+The relocatable variable is defined as grub_uint8_t. Relevant
+member in setup_header structure is also defined as one byte
+in Linux boot protocol. By semantic definition it is a bool type.
+It is not appropriate to treat it as a four bytes. This patch
+fixes the issue.
+
+Signed-off-by: Tianjia Zhang <tianjia.zhang@linux.alibaba.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+Conflict:NA
+Reference:https://git.savannah.gnu.org/cgit/grub.git/patch/?id=8fcfd1e0fc72d58766ce3dc09cf883c032f063f6
+---
+ grub-core/loader/i386/linux.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/grub-core/loader/i386/linux.c b/grub-core/loader/i386/linux.c
+index 0eea64a20..9f74a96b1 100644
+--- a/grub-core/loader/i386/linux.c
++++ b/grub-core/loader/i386/linux.c
+@@ -736,7 +736,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
+       for (align = 0; align < 32; align++)
+ 	if (grub_le_to_cpu32 (lh.kernel_alignment) & (1 << align))
+ 	  break;
+-      relocatable = grub_le_to_cpu32 (lh.relocatable);
++      relocatable = lh.relocatable;
+     }
+   else
+     {
+-- 
+cgit v1.2.1
+
