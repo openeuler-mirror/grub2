@@ -1,0 +1,40 @@
+From 261e4511ce335cc3784cbbe6c99fd35a81efa059 Mon Sep 17 00:00:00 2001
+From: Alec Brown <alec.r.brown@oracle.com>
+Date: Mon, 21 Mar 2022 02:28:57 -0400
+Subject: loader/i386/pc/linux: Fix uninitialized scalar variable
+
+In the function grub_linux16_boot(), struct grub_relocator16_state state is
+called but isn't being initialized. This results in the members grub_uint32_t
+ebx, grub_uint32_t edx, grub_uint32_t esi, and grub_uint32_t ebp being filled
+with junk data from the stack since none of them are being set to any values.
+We can prevent this by setting state to {0}.
+
+Fixes: CID 375028
+
+Signed-off-by: Alec Brown <alec.r.brown@oracle.com>
+Reviewed-by: Darren Kenny <darren.kenny@oracle.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+
+Conflict:NA
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=261e4511ce335cc3784cbbe6c99fd35a81efa059
+
+---
+ grub-core/loader/i386/pc/linux.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/grub-core/loader/i386/pc/linux.c b/grub-core/loader/i386/pc/linux.c
+index b670b65..7b89d43 100644
+--- a/grub-core/loader/i386/pc/linux.c
++++ b/grub-core/loader/i386/pc/linux.c
+@@ -55,7 +55,7 @@ static grub_err_t
+ grub_linux16_boot (void)
+ {
+   grub_uint16_t segment;
+-  struct grub_relocator16_state state;
++  struct grub_relocator16_state state = {0};
+ 
+   segment = grub_linux_real_target >> 4;
+   state.gs = state.fs = state.es = state.ds = state.ss = segment;
+-- 
+cgit v1.1
+
