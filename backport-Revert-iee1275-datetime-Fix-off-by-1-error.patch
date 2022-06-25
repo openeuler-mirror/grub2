@@ -1,0 +1,46 @@
+From be257de00c8edbbe8e26d83769c6d36ea1f2a734 Mon Sep 17 00:00:00 2001
+From: Glenn Washburn <development@efficientek.com>
+Date: Mon, 24 Jan 2022 20:10:51 -0600
+Subject: Revert "iee1275/datetime: Fix off-by-1 error."
+
+This is causing the test grub_cmd_date() to fail because the returned
+date is one day more than it should be.
+
+This reverts commit 607d66116 (iee1275/datetime: Fix off-by-1 error.).
+
+Signed-off-by: Glenn Washburn <development@efficientek.com>
+Tested-by: Daniel Axtens <dja@axtens.net>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+
+Conflict:NA
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=be257de00c8edbbe8e26d83769c6d36ea1f2a734
+
+---
+ grub-core/lib/ieee1275/datetime.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/grub-core/lib/ieee1275/datetime.c b/grub-core/lib/ieee1275/datetime.c
+index b81fba2..74578f1 100644
+--- a/grub-core/lib/ieee1275/datetime.c
++++ b/grub-core/lib/ieee1275/datetime.c
+@@ -95,7 +95,7 @@ grub_get_datetime (struct grub_datetime *datetime)
+ 
+   datetime->year = args.year;
+   datetime->month = args.month;
+-  datetime->day = args.day + 1;
++  datetime->day = args.day;
+   datetime->hour = args.hour;
+   datetime->minute = args.minute;
+   datetime->second = args.second;
+@@ -140,7 +140,7 @@ grub_set_datetime (struct grub_datetime *datetime)
+ 
+   args.year = datetime->year;
+   args.month = datetime->month;
+-  args.day = datetime->day - 1;
++  args.day = datetime->day;
+   args.hour = datetime->hour;
+   args.minute = datetime->minute;
+   args.second = datetime->second;
+-- 
+cgit v1.1
+

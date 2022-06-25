@@ -14,7 +14,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.06
-Release:	8
+Release:	9
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -436,6 +436,39 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Tue Jun 21 2022 sunhai <sunhai10@huawei.com> - 1:2.06-9
+- Type:CVE
+- CVE:CVE-2021-3697 CVE-2022-28735 CVE-2022-28736 CVE-2022-28734 CVE-2022-28733 CVE-2021-3695 CVE-2021-3696
+- SUG:NA
+- DESC:adapts to the open source code for log printing
+       libgcrypt: Avoid -Wsign-compare in rijndael do_setkey()
+       disk/ldm: Fix resource leak
+       io/gzio: Fix possible use of uninitialized variable in huft_build()
+       fs/zfs/zfs: Fix possible insecure use of chunk size in zap_leaf_array_get()
+       util/grub-mkfont: Fix memory leak in write_font_pf2()
+       util/grub-fstest: Fix resource leaks in cmd_cmp()
+       util/grub-mkrescue: Fix memory leak in write_part()
+       util/grub-install-common: Fix memory leak in copy_all()
+       osdep/linux: Fix md array device enumeration
+       double grub x86_64-efi mm pool
+       net: fix null pointer dereference when parsing ICMP6_ROUTER_ADVERTISE messages
+       efinet:Correct closing of SNP protocol
+       configure:Fix misspelled variable BUILD_LDFAGS -> BUILD_LDFLAGS
+       fix partmap_test failure
+       UEFI mode uses /boot/efi/EFI/euleros/user.cfg as password
+       util/resolve: Do not read past the end of the array in read_dep_list()
+       fs/affs: Fix resource leaks
+       Revert iee1275/datetime: Fix off-by-1 error
+       commands/search: Fix bug stopping iteration when --no-floppy is used
+       mm: Temporarily disable grub_mm_debug while calling grub_vprintf() in grub_printf()
+       net: Check against nb->tail in grub_netbuff_pull()
+       kern/rescue_parser: Ensure that parser allocated memory is not leaked
+       net/net: Fix uninitialized scalar variable
+       net/arp: Fix uninitialized scalar variable
+       loader/i386/pc/linux: Fix uninitialized scalar variable
+       net/bootp: Fix uninitialized scalar variable
+       fix CVE-2021-3697 CVE-2022-28735 CVE-2022-28736 CVE-2022-28734 CVE-2022-28733 CVE-2021-3695 CVE-2021-3696
+
 * Thu May 05 2022 sunhai <sunhai10@huawei.com> - 1:2.06-8
 - Type:bugfix
 - CVE:NA

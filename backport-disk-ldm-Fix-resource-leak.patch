@@ -1,0 +1,38 @@
+From 971dd6599d838ed21f38f7261c7bdda59f9bbdae Mon Sep 17 00:00:00 2001
+From: Alec Brown <alec.r.brown@oracle.com>
+Date: Wed, 10 Nov 2021 15:49:29 -0500
+Subject: disk/ldm: Fix resource leak
+
+Commit 23e39f50ca7a (disk/ldm: Make sure comp data is freed before exiting from
+make_vg()) fixed several spots in make_vg() where comp data was leaking memory
+when an error was being handled but missed one. To avoid leaking memory, comp
+should be freed when an error is being handled after comp has been successfully
+allocated memory in the for loop.
+
+Fixes: 23e39f50ca7a (disk/ldm: Make sure comp data is freed before exiting from make_vg())
+Fixes: CID 73804
+
+Conflict: NA
+Reference: https://git.savannah.gnu.org/cgit/grub.git/commit?id=971dd6599d838ed21f38f7261c7bdda59f9bbdae
+
+Signed-off-by: Alec Brown <alec.r.brown@oracle.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/disk/ldm.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/grub-core/disk/ldm.c b/grub-core/disk/ldm.c
+index 4577a51..337abf7 100644
+--- a/grub-core/disk/ldm.c
++++ b/grub-core/disk/ldm.c
+@@ -487,6 +487,7 @@ make_vg (grub_disk_t disk,
+ 	  ptr = vblk[i].dynamic;
+ 	  if (ptr + *ptr + 1 >= vblk[i].dynamic + sizeof (vblk[i].dynamic))
+ 	    {
++	      grub_free (comp);
+ 	      goto fail2;
+ 	    }
+ 	  comp->internal_id = grub_malloc ((grub_size_t) ptr[0] + 2);
+-- 
+cgit v1.1
+

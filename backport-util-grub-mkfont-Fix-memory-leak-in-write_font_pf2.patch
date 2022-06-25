@@ -1,0 +1,35 @@
+From b1fae9c1ba1f3ba4c9b4d39ad6eaedf9d77af7ed Mon Sep 17 00:00:00 2001
+From: Darren Kenny <darren.kenny@oracle.com>
+Date: Tue, 26 Oct 2021 15:02:38 +0000
+Subject: util/grub-mkfont: Fix memory leak in write_font_pf2()
+
+In the function write_font_pf2() memory is allocated for font_name to
+construct a new name, but it is not released before returning from the
+function, leaking the allocated memory.
+
+Fixes: CID 314015
+
+Signed-off-by: Darren Kenny <darren.kenny@oracle.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+
+Conflict: NA
+Reference: https://git.savannah.gnu.org/cgit/grub.git/commit?id=b1fae9c1ba1f3ba4c9b4d39ad6eaedf9d77af7ed
+
+---
+ util/grub-mkfont.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/util/grub-mkfont.c b/util/grub-mkfont.c
+index 0fe45a6..fdfd70d 100644
+--- a/util/grub-mkfont.c
++++ b/util/grub-mkfont.c
+@@ -928,6 +928,7 @@ write_font_pf2 (struct grub_font_info *font_info, char *output_file)
+ 			     file, output_file);
+     }
+ 
++  free (font_name);
+   fclose (file);
+ }
+ 
+-- 
+cgit v1.1
