@@ -116,7 +116,7 @@
 
 ### fixme
 %ifarch aarch64 %{arm} riscv64
-%global efi_modules " "
+%global efi_modules " tpm "
 %else
 %global efi_modules " backtrace chain tpm usb usbserial_common usbserial_pl2303 usbserial_ftdi usbserial_usbdebug keylayouts at_keyboard "
 %endif
