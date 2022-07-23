@@ -1,0 +1,29 @@
+From 0a73812b9ba12f8af4909b952751d6d5f4fd2dd2 Mon Sep 17 00:00:00 2001
+From: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+Date: Sat, 23 Jul 2022 19:54:34 +0800
+Subject: [PATCH] fix compressed kernel verification failed
+
+Signed-off-by: Yusong Gao <gaoyusong2@huawei.com>
+---
+ include/grub/file.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/grub/file.h b/include/grub/file.h
+index 96827a4..b956dbb 100644
+--- a/include/grub/file.h
++++ b/include/grub/file.h
+@@ -180,10 +180,10 @@ extern grub_disk_read_hook_t EXPORT_VAR(grub_file_progress_hook);
+ /* Filters with lower ID are executed first.  */
+ typedef enum grub_file_filter_id
+   {
+-    GRUB_FILE_FILTER_VERIFY,
+     GRUB_FILE_FILTER_GZIO,
+     GRUB_FILE_FILTER_XZIO,
+     GRUB_FILE_FILTER_LZOPIO,
++    GRUB_FILE_FILTER_VERIFY,
+     GRUB_FILE_FILTER_MAX,
+     GRUB_FILE_FILTER_COMPRESSION_FIRST = GRUB_FILE_FILTER_GZIO,
+     GRUB_FILE_FILTER_COMPRESSION_LAST = GRUB_FILE_FILTER_LZOPIO,
+-- 
+2.27.0
+
