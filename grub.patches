@@ -262,3 +262,4 @@ Patch0262: backport-net-http-Fix-OOB-write-for-split-http-headers.patch
 Patch0263: backport-net-http-Error-out-on-headers-with-LF-without-CR.patch
 Patch0264: backport-misc-Make-grub_min-and-grub_max-more-resilient.patch
 Patch0265: backport-EFI-allocate-kernel-in-EFI_RUNTIME_SERVICES_CODE-ins.patch
+Patch0266: fix-compressed-kernel-verification-failed.patch
