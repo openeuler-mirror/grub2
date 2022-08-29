@@ -1,0 +1,71 @@
+From a608e6a18001227ef0b5d079a49ad3766fd742ff Mon Sep 17 00:00:00 2001
+From: Stefan Agner <stefan@agner.ch>
+Date: Tue, 31 May 2022 17:53:43 +0200
+Subject: [PATCH] disk/efi/efidisk: Pass buffers with higher alignment
+
+Some devices report IoAlign values but seem to require buffers with
+higher alignment.
+
+The UEFI specification is saying: "IoAlign values of 0 and 1 mean that
+the buffer can be placed anywhere in memory. Otherwise, IoAlign must
+be a power of 2, and the requirement is that the start address of
+a buffer must be evenly divisible by IoAlign with no remainder."
+
+Some devices report IoAlign of 2, however seem to require 4 bytes
+aligned buffers. It seems that this got misinterpreted by some vendors
+assuming IoAlign is 2^IoAlign. There is also such a hint in an example
+in earlier versions of the Driver Writer's Guide:
+
+ ScsiPassThruMode.IoAlign = 2; //Data must be aligned on 4-byte boundary
+
+Some devices report no alignment requirements at all but seem to read
+corrupted data or report read errors when passing unaligned buffers.
+
+Work around by using an alignment of at least BlockSize (typically 512
+bytes) in any case. If IoAlign (interpreted as per UEFI specification)
+requests a higher alignment than BlockSize, follow IoAlign still.
+
+Note: The problem has only noticed with compressed squashfs. It seems
+that ext4 (and presumably other file system drivers) pass buffers with
+a higher alignment already.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=858a0745c89262d1f35b9d3d3a208573732d7e36
+Conflict:NA
+
+Signed-off-by: Stefan Agner <stefan@agner.ch>
+Acked-by: Heinrich Schuchardt <heinrich.schuchardt@canaonical.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+
+---
+ grub-core/disk/efi/efidisk.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/grub-core/disk/efi/efidisk.c b/grub-core/disk/efi/efidisk.c
+index abb98aa..8a616d9 100644
+--- a/grub-core/disk/efi/efidisk.c
++++ b/grub-core/disk/efi/efidisk.c
+@@ -562,8 +562,19 @@ __grub_efidisk_readwrite (struct grub_disk *disk, grub_disk_addr_t sector,
+   d = disk->data;
+   bio = d->block_io;
+ 
+-  /* Set alignment to 1 if 0 specified */
+-  io_align = bio->media->io_align ? bio->media->io_align : 1;
++  /*
++   * If IoAlign is > 1, it should represent the required alignment. However,
++   * some UEFI implementations seem to report IoAlign=2 but require 2^IoAlign.
++   * some implementation seem to require alignment despite not reporting any
++   * specific requirements.
++   *
++   * Make sure to use buffers which are at least aligned to block size.
++   */
++  if (bio->media->io_align < bio->media->block_size)
++    io_align = bio->media->block_size;
++  else
++    io_align = bio->media->io_align;
++
+   num_bytes = size << disk->log_sector_size;
+ 
+   if ((grub_addr_t) buf & (io_align - 1))
+-- 
+2.27.0
+
