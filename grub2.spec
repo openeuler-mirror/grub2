@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	24
+Release:	25
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -450,6 +450,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Mon Aug 29 2022 wanglu<wanglu210@huawei.com> - 1:2.04-25
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:tests: Disable blkid cache usage
+       disk/efi/efidisk: Pass buffers with higher ailgnment
 
 * Tue Jun 14 2022 chenjirong<chenjirong@huawei.com> - 2.04-24
 - Type:CVE
