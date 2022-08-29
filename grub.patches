@@ -406,3 +406,5 @@ Patch0405: backport-net-tftp-Avoid-a-trivial-UAF.patch
 Patch0406: backport-net-http-Do-not-tear-down-socket-if-its-already.patch
 Patch0407: backport-net-http-Fix-OOB-write-for-split-http-headers.patch
 Patch0408: backport-net-http-Error-out-on-headers-with-LF-without-CR.patch
+Patch0409: backport-tests-Disable-blkid-cache-usage.patch
+Patch0410: backport-disk-efi-efidisk-Pass-buffers-with-higher-alignment.patch
