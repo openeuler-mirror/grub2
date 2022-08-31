@@ -263,3 +263,5 @@ Patch0263: backport-net-http-Error-out-on-headers-with-LF-without-CR.patch
 Patch0264: backport-misc-Make-grub_min-and-grub_max-more-resilient.patch
 Patch0265: backport-EFI-allocate-kernel-in-EFI_RUNTIME_SERVICES_CODE-ins.patch
 Patch0266: fix-compressed-kernel-verification-failed.patch
+Patch0267: backport-tests-Disable-blkid-cache-usage.patch
+Patch0268: backport-disk-efi-efidisk-Pass-buffers-with-higher-alignment.patch
