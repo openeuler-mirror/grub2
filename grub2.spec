@@ -535,7 +535,7 @@ rm -r /boot/grub2.tmp/ || :
 - DESC:fix the installation failure of grub2-efi-x64/grub-efi-aa64 packages on
        the /boot partition of VFAT file system.
 
-* Tue Mar 62 2021 hanhui <hanhui15@huawei.com> - 2.04-11
+* Tue Mar 16 2021 hanhui <hanhui15@huawei.com> - 2.04-11
 - Type:cves
 - Id:CVE-2020-27779 CVE-2020-14372
 - SUG:NA
