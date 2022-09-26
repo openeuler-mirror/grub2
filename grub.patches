@@ -356,3 +356,4 @@ Patch0355: backport-templates-Fix-bad-test-on-GRUB_DISABLE_SUBMENU.patch
 Patch0356: 0251-Add-loongarch64-support.patch
 Patch0357: 0252-LoongArch64-support-boot-parameter-01002-version.patch
 Patch0358: 0253-LoongArch64-add-fdt-and-efistub-support.patch
+Patch0359: 0254-LoongArch64-add-clfs-abi-compile.patch

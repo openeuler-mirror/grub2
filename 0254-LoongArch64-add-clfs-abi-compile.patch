@@ -1,0 +1,1631 @@
+From 85d9979eac1c431fa04bda582dd17be322fdfea6 Mon Sep 17 00:00:00 2001
+From: openEuler Buildteam <buildteam@openEuler.org>
+Date: Thu, 22 Sep 2022 09:26:51 +0800
+Subject: [PATCH] add clfs abi support
+
+
+diff --git a/Makefile.util.def b/Makefile.util.def
+index 3473947..17da9f2 100644
+--- a/Makefile.util.def
++++ b/Makefile.util.def
+@@ -167,6 +167,7 @@ library = {
+   common = grub-core/kern/ia64/dl_helper.c;
+   common = grub-core/kern/arm/dl_helper.c;
+   common = grub-core/kern/arm64/dl_helper.c;
++  common = grub-core/kern/loongarch64/dl_helper.c;
+   common = grub-core/lib/minilzo/minilzo.c;
+   common = grub-core/lib/xzembed/xz_dec_bcj.c;
+   common = grub-core/lib/xzembed/xz_dec_lzma2.c;
+diff --git a/conf/Makefile.common b/conf/Makefile.common
+index 27cadba..0647c53 100644
+--- a/conf/Makefile.common
++++ b/conf/Makefile.common
+@@ -20,10 +20,6 @@ endif
+ if COND_powerpc_ieee1275
+   CFLAGS_PLATFORM += -mcpu=powerpc
+ endif
+-if COND_loongarch64
+-  CFLAGS_PLATFORM += -fno-strict-aliasing -march=loongarch64 -mabi=lp64 -fno-plt -Wa,-mla-global-with-abs -mcmodel=large
+-  CPPFLAGS_PLATFORM = -fno-strict-aliasing -march=loongarch64 -mabi=lp64 -fno-plt -Wa,-mla-global-with-abs -mcmodel=large
+-endif
+ 
+ # Other options
+ 
+diff --git a/configure.ac b/configure.ac
+index 701e011..e332ee6 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -888,6 +888,21 @@ if ( test "x$target_cpu" = xi386 || test "x$target_cpu" = xx86_64 ) && test "x$p
+   TARGET_CFLAGS="$TARGET_CFLAGS -mno-mmx -mno-sse -mno-sse2 -mno-sse3 -mno-3dnow"
+ fi
+ 
++if test "x$target_cpu" = xloongarch64; then
++  AC_CACHE_CHECK([whether _mno_explicit_relocs works], [grub_cv_cc_mno_explicit_relocs], [
++    CFLAGS="$TARGET_CFLAGS -mno-explicit-relocs -Werror"
++    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
++	[grub_cv_cc_mno_explicit_relocs=yes],
++	[grub_cv_cc_mno_explicit_relocs=no])
++  ])
++  if test "x$grub_cv_cc_mno_explicit_relocs" = xyes; then
++    TARGET_CFLAGS="$TARGET_CFLAGS -mno-explicit-relocs -fno-plt"
++    TARGET_CCASFLAGS="$TARGET_CCASFLAGS -mno-explicit-relocs -fno-plt"
++  fi
++  TARGET_CFLAGS="$TARGET_CFLAGS -Wa,-mla-global-with-abs"
++  TARGET_CCASFLAGS="$TARGET_CCASFLAGS -Wa,-mla-global-with-abs"
++fi
++
+ # Should grub utils get the host CFLAGS, or the target CFLAGS?
+ AC_ARG_WITH([utils],
+             AS_HELP_STRING([--with-utils=host|target|build],
+@@ -1237,7 +1252,8 @@ AC_SUBST(TARGET_LDFLAGS_OLDMAGIC)
+ 
+ LDFLAGS="$TARGET_LDFLAGS"
+ 
+-if test "$target_cpu" = x86_64 || test "$target_cpu" = sparc64 || test "$target_cpu" = riscv64 ; then
++if test "$target_cpu" = x86_64 || test "$target_cpu" = sparc64 || test "$target_cpu" = riscv64 \
++  || test "$target_cpu" = loongarch64 ; then
+   # Use large model to support 4G memory
+   AC_CACHE_CHECK([whether option -mcmodel=large works], grub_cv_cc_mcmodel, [
+     CFLAGS="$TARGET_CFLAGS -mcmodel=large"
+diff --git a/grub-core/Makefile.core.def b/grub-core/Makefile.core.def
+index ebadbe5..5a466a3 100644
+--- a/grub-core/Makefile.core.def
++++ b/grub-core/Makefile.core.def
+@@ -65,6 +65,9 @@ kernel = {
+   arm64_efi_ldflags          = '-Wl,-r,-d';
+   arm64_efi_stripflags       = '--strip-unneeded -K start -R .note -R .comment -R .note.gnu.gold-version -R .eh_frame';
+ 
++  loongarch64_efi_ldflags      = '-Wl,-r,-d';
++  loongarch64_efi_stripflags   = '--strip-unneeded -K start -R .note -R .comment -R .note.gnu.gold-version -R .eh_frame';
++
+   riscv32_efi_ldflags      = '-Wl,-r,-d';
+   riscv32_efi_stripflags   = '--strip-unneeded -K start -R .note -R .comment -R .note.gnu.gold-version -R .eh_frame';
+ 
+@@ -103,9 +106,6 @@ kernel = {
+   arm_coreboot_ldflags       = '-Wl,-r,-d';
+   arm_coreboot_stripflags    = '--strip-unneeded -K start -R .note -R .comment -R .note.gnu.gold-version';
+ 
+-  loongarch64_efi_ldflags    = '-Wl,-r,-d';
+-  loongarch64_efi_stripflags = '--strip-unneeded -K start -R .note -R .comment -R .note.gnu.gold-version -R .eh_frame';
+-
+   i386_pc_startup = kern/i386/pc/startup.S;
+   i386_efi_startup = kern/i386/efi/startup.S;
+   x86_64_efi_startup = kern/x86_64/efi/startup.S;
+@@ -327,11 +327,6 @@ kernel = {
+   extra_dist = video/sis315_init.c;
+   mips_loongson = commands/keylayouts.c;
+ 
+-  loongarch64 = kern/loongarch64/init.c;
+-  loongarch64 = kern/loongarch64/dl.c;
+-  loongarch64 = kern/loongarch64/cache.S;
+-  loongarch64 = kern/generic/rtc_get_time_ms.c;
+-
+   powerpc_ieee1275 = kern/powerpc/cache.S;
+   powerpc_ieee1275 = kern/powerpc/dl.c;
+   powerpc_ieee1275 = kern/powerpc/compiler-rt.S;
+@@ -354,6 +349,13 @@ kernel = {
+   arm64 = kern/arm64/dl.c;
+   arm64 = kern/arm64/dl_helper.c;
+ 
++  loongarch64 = kern/loongarch64/init.c;
++  loongarch64 = kern/loongarch64/dl.c;
++  loongarch64 = kern/loongarch64/dl_helper.c;
++  loongarch64 = kern/loongarch64/cache.S;
++  loongarch64 = kern/generic/rtc_get_time_ms.c;
++
++
+   riscv32 = kern/riscv/cache.c;
+   riscv32 = kern/riscv/cache_flush.S;
+   riscv32 = kern/riscv/dl.c;
+diff --git a/grub-core/kern/dl.c b/grub-core/kern/dl.c
+index 4ac1e05..9816fc5 100644
+--- a/grub-core/kern/dl.c
++++ b/grub-core/kern/dl.c
+@@ -278,7 +278,8 @@ grub_dl_load_segments (grub_dl_t mod, const Elf_Ehdr *e)
+   unsigned i;
+   const Elf_Shdr *s;
+   grub_size_t tsize = 0, talign = 1;
+-#if !defined (__i386__) && !defined (__x86_64__) && !defined(__riscv)
++#if !defined (__i386__) && !defined (__x86_64__) && !defined(__riscv) && \
++  !defined (__loongarch__)
+   grub_size_t tramp;
+   grub_size_t got;
+   grub_err_t err;
+@@ -294,7 +295,8 @@ grub_dl_load_segments (grub_dl_t mod, const Elf_Ehdr *e)
+ 	talign = s->sh_addralign;
+     }
+ 
+-#if !defined (__i386__) && !defined (__x86_64__) && !defined(__riscv)
++#if !defined (__i386__) && !defined (__x86_64__) && !defined(__riscv) && \
++  !defined (__loongarch__)
+   err = grub_arch_dl_get_tramp_got_size (e, &tramp, &got);
+   if (err)
+     return err;
+@@ -357,7 +359,8 @@ grub_dl_load_segments (grub_dl_t mod, const Elf_Ehdr *e)
+ 	  mod->segment = seg;
+ 	}
+     }
+-#if !defined (__i386__) && !defined (__x86_64__) && !defined(__riscv)
++#if !defined (__i386__) && !defined (__x86_64__) && !defined(__riscv) && \
++  !defined (__loongarch__)
+   ptr = (char *) ALIGN_UP ((grub_addr_t) ptr, GRUB_ARCH_DL_TRAMP_ALIGN);
+   mod->tramp = ptr;
+   mod->trampptr = ptr;
+diff --git a/grub-core/kern/loongarch64/dl.c b/grub-core/kern/loongarch64/dl.c
+index a6fd387..47196a2 100644
+--- a/grub-core/kern/loongarch64/dl.c
++++ b/grub-core/kern/loongarch64/dl.c
+@@ -1,7 +1,6 @@
+-/* loongarch64/dl.c - arch-dependent part of loadable module support */
+ /*
+  *  GRUB  --  GRand Unified Bootloader
+- *  Copyright (C) 2002,2005,2007,2009,2017  Free Software Foundation, Inc.
++ *  Copyright (C) 2022 Free Software Foundation, Inc.
+  *
+  *  GRUB is free software: you can redistribute it and/or modify
+  *  it under the terms of the GNU General Public License as published by
+@@ -21,9 +20,10 @@
+ #include <grub/elf.h>
+ #include <grub/misc.h>
+ #include <grub/err.h>
+-#include <grub/cpu/types.h>
++#include <grub/types.h>
+ #include <grub/mm.h>
+ #include <grub/i18n.h>
++#include <grub/cpu/reloc.h>
+ 
+ /* Check if EHDR is a valid ELF header.  */
+ grub_err_t
+@@ -33,8 +33,7 @@ grub_arch_dl_check_header (void *ehdr)
+ 
+   /* Check the magic numbers.  */
+   if (e->e_ident[EI_CLASS] != ELFCLASS64
+-      || e->e_ident[EI_DATA] != ELFDATA2LSB
+-      || e->e_machine != EM_LOONGARCH64)
++      || e->e_ident[EI_DATA] != ELFDATA2LSB || e->e_machine != EM_LOONGARCH)
+     return grub_error (GRUB_ERR_BAD_OS, N_("invalid arch-dependent ELF magic"));
+ 
+   return GRUB_ERR_NONE;
+@@ -42,217 +41,110 @@ grub_arch_dl_check_header (void *ehdr)
+ 
+ #pragma GCC diagnostic ignored "-Wcast-align"
+ 
+-grub_err_t
+-grub_arch_dl_get_tramp_got_size (const void *ehdr __attribute__ ((unused)),
+-				 grub_size_t *tramp, grub_size_t *got)
+-{
+-  *tramp = 0;
+-  *got = 0;
+-  return GRUB_ERR_NONE;
+-}
+-
+-/* Relocate symbols.  */
++/*
++ * Unified function for both REL and RELA.
++ */
+ grub_err_t
+ grub_arch_dl_relocate_symbols (grub_dl_t mod, void *ehdr,
+ 			       Elf_Shdr *s, grub_dl_segment_t seg)
+ {
+-  Elf_Ehdr *e = ehdr;
+   Elf_Rel *rel, *max;
+-  grub_uint64_t oprs[10240]={0};
+-  int opri=-1;
+-  grub_uint32_t la_abs = 0;
++  struct grub_loongarch64_stack stack;
++  grub_loongarch64_stack_init (&stack);
+ 
+-  for (rel = (Elf_Rel *) ((char *) e + s->sh_offset),
++  for (rel = (Elf_Rel *) ((char *) ehdr + s->sh_offset),
+ 	 max = (Elf_Rel *) ((char *) rel + s->sh_size);
+        rel < max;
+        rel = (Elf_Rel *) ((char *) rel + s->sh_entsize))
+     {
+-      grub_uint8_t *addr;
+       Elf_Sym *sym;
+-      Elf_Addr r_info;
+-      grub_uint64_t sym_value;
++      void *place;
++      grub_uint64_t sym_addr;
+ 
+-      if (seg->size < rel->r_offset)
++      if (rel->r_offset >= seg->size)
+ 	return grub_error (GRUB_ERR_BAD_MODULE,
+-			   "reloc offset is out of the segment");
+-
+-      r_info = (grub_uint64_t) (rel->r_info);
++			   "reloc offset is outside the segment");
+ 
+-      addr = (grub_uint8_t *) ((char*)seg->addr + rel->r_offset);
+       sym = (Elf_Sym *) ((char*)mod->symtab
+-			 + mod->symsize * ELF_R_SYM (r_info));
+-      sym_value = sym->st_value;
++			 + mod->symsize * ELF_R_SYM (rel->r_info));
++
++      sym_addr = sym->st_value;
+       if (s->sh_type == SHT_RELA)
+-	{
+-	  sym_value += ((Elf_Rela *) rel)->r_addend;
+-	}
+-      switch (ELF_R_TYPE (r_info))
++	sym_addr += ((Elf_Rela *) rel)->r_addend;
++
++      place = (void *) ((grub_addr_t)seg->addr + rel->r_offset);
++
++      switch (ELF_R_TYPE (rel->r_info))
+ 	{
+ 	case R_LARCH_64:
+-		{
+-		*(grub_uint64_t *)addr=(grub_uint64_t)sym_value;
+-		}
+-		break;
++	  {
++	    grub_uint64_t *abs_place = place;
++
++	    grub_dprintf ("dl", "reloc_abs64 %p => 0x%016llx, %p\n",
++			  place, (unsigned long long) sym_addr, abs_place);
++
++	    *abs_place += (grub_uint64_t) sym_addr;
++	  }
++	  break;
+ 	case R_LARCH_MARK_LA:
+-		{
+-		la_abs=1;
+-		}
+-		break;
++	  break;
+ 	case R_LARCH_SOP_PUSH_PCREL:
+-		{
+-		opri++;
+-		oprs[opri]=(grub_uint64_t)(sym_value-(grub_uint64_t)addr);
+-		}
+-		break;
+-	case R_LARCH_SOP_PUSH_ABSOLUTE:
+-		{
+-		opri++;
+-		oprs[opri]=(grub_uint64_t)sym_value;
+-		}
+-		break;
+ 	case R_LARCH_SOP_PUSH_PLT_PCREL:
+-		{
+-		opri++;
+-		oprs[opri]=(grub_uint64_t)(sym_value-(grub_uint64_t)addr);
+-		}
+-		break;
+-	case R_LARCH_SOP_SUB:
+-		{
+-		grub_uint64_t opr2=oprs[opri];
+-		opri--;
+-		grub_uint64_t opr1=oprs[opri];
+-		opri--;
+-		opri++;
+-		oprs[opri]=opr1 - opr2;
+-		}
+-		break;
+-	case R_LARCH_SOP_SL:
+-		{
+-		grub_uint64_t opr2=oprs[opri];
+-		opri--;
+-		grub_uint64_t opr1=oprs[opri];
+-		opri--;
+-		opri++;
+-		oprs[opri]=opr1 << opr2;
+-		}
+-		break;
+-	case R_LARCH_SOP_SR:
+-		{
+-		grub_uint64_t opr2=oprs[opri];
+-		opri--;
+-		grub_uint64_t opr1=oprs[opri];
+-		opri--;
+-		opri++;
+-		oprs[opri]=opr1 >> opr2;
+-		}
+-		break;
+-	case R_LARCH_SOP_ADD:
+-		{
+-		grub_uint64_t opr2=oprs[opri];
+-		opri--;
+-		grub_uint64_t opr1=oprs[opri];
+-		opri--;
+-		opri++;
+-		oprs[opri]=opr1 + opr2;
+-		}
+-		break;
+-	case R_LARCH_SOP_AND:
+-		{
+-		grub_uint64_t opr2=oprs[opri];
+-		opri--;
+-		grub_uint64_t opr1=oprs[opri];
+-		opri--;
+-		opri++;
+-		oprs[opri]=opr1 & opr2;
+-		}
+-		break;
+-	case R_LARCH_SOP_IF_ELSE:
+-		{
+-		grub_uint64_t opr3=oprs[opri];
+-		opri--;
+-		grub_uint64_t opr2=oprs[opri];
+-		opri--;
+-		grub_uint64_t opr1=oprs[opri];
+-		opri--;
+-		if(opr1){
+-			opri++;
+-			oprs[opri]=opr2;
+-		} else {
+-			opri++;
+-			oprs[opri]=opr3;
+-		}
+-		}
+-		break;
+-	case R_LARCH_SOP_POP_32_S_10_5:
+-		{
+-		grub_uint64_t opr1 = oprs[opri];
+-		opri--;
+-		*(grub_uint64_t *)addr=(*(grub_uint64_t *)addr) | ((opr1 & 0x1f) << 10);
+-		}
+-		break;
+-	case R_LARCH_SOP_POP_32_U_10_12:
+-		{
+-		grub_uint64_t opr1 = oprs[opri];
+-		opri--;
+-		*(grub_uint64_t *)addr=(*(grub_uint64_t *)addr) | ((opr1 & 0xfff) << 10);
+-		}
+-		break;
+-	case R_LARCH_SOP_POP_32_S_10_12:
+-		{
+-		if(la_abs==1)
+-			la_abs=0;
+-		grub_uint64_t opr1 = oprs[opri];
+-		opri--;
+-		*(grub_uint64_t *)addr= (*(grub_uint64_t *)addr) | ((opr1 & 0xfff) << 10);
+-		}
+-		break;
+-	case R_LARCH_SOP_POP_32_S_10_16:
+-		{
+-		grub_uint64_t opr1 = oprs[opri];
+-		opri--;
+-		*(grub_uint64_t *)addr= (*(grub_uint64_t *)addr) | ((opr1 & 0xffff) << 10);
+-		}
+-		break;
+-	case R_LARCH_SOP_POP_32_S_10_16_S2:
+-		{
+-		grub_uint64_t opr1 = oprs[opri];
+-		opri--;
+-		*(grub_uint64_t *)addr= (*(grub_uint64_t *)addr) | (((opr1 >> 2) & 0xffff) << 10);
+-		}
+-		break;
+-	case R_LARCH_SOP_POP_32_S_5_20:
+-		{
+-		grub_uint64_t opr1 = oprs[opri];
+-		opri--;
+-		*(grub_uint64_t *)addr= (*(grub_uint64_t *)addr) | ((opr1 & 0xfffff)<<5)	;
+-		}
+-		break;
+-	case R_LARCH_SOP_POP_32_S_0_5_10_16_S2:
+-		{
+-		grub_uint64_t opr1 = oprs[opri];
+-		opri--;
+-		*(grub_uint64_t *)addr=(*(grub_uint64_t *)addr) | (((opr1 >> 2) & 0xffff) << 10);
+-		*(grub_uint64_t *)addr=(*(grub_uint64_t *)addr) | ((opr1 >> 18) & 0x1f);
+-		}
+-		break;
+-	case R_LARCH_SOP_POP_32_S_0_10_10_16_S2:
+-		{
+-		grub_uint64_t opr1 = oprs[opri];
+-		opri--;
+-		*(grub_uint64_t *)addr=(*(grub_uint64_t *)addr) | (((opr1 >> 2) & 0xffff) << 10);
+-		*(grub_uint64_t *)addr=(*(grub_uint64_t *)addr) | ((opr1 >> 18) & 0x3ff);
+-		}
+-		break;
++	  grub_loongarch64_sop_push (&stack, sym_addr - (grub_uint64_t)place);
++	  break;
++	case R_LARCH_B26:
++	  {
++	    grub_uint32_t *abs_place = place;
++	    grub_ssize_t off = sym_addr - (grub_addr_t) place;
++
++	    grub_loongarch64_b26 (abs_place, off);
++	  }
++	  break;
++	case R_LARCH_ABS_HI20:
++	  {
++	    grub_uint32_t *abs_place = place;
++	    grub_loongarch64_xxx_hi20 (abs_place, sym_addr);
++	  }
++	  break;
++	case R_LARCH_ABS64_LO20:
++	  {
++	    grub_uint32_t *abs_place = place;
++	    grub_loongarch64_xxx64_lo20 (abs_place, sym_addr);
++	  }
++	  break;
++	case R_LARCH_ABS64_HI12:
++	  {
++	    grub_uint32_t *abs_place = place;
++	    grub_loongarch64_xxx64_hi12 (abs_place, sym_addr);
++	  }
++	  break;
++	case R_LARCH_PCALA_HI20:
++	  {
++	    grub_uint32_t *abs_place = place;
++	    grub_int32_t off = (((sym_addr + 0x800) & ~0xfffULL) - ((grub_addr_t)place & ~0xfffULL));
++
++	    grub_loongarch64_xxx_hi20 (abs_place, off);
++	  }
++	  break;
++	case R_LARCH_ABS_LO12:
++	case R_LARCH_PCALA_LO12:
++	  {
++	    grub_uint32_t *abs_place = place;
++	    grub_loongarch64_xxx_lo12 (abs_place, sym_addr);
++	  }
++	  break;
++	GRUB_LOONGARCH64_RELOCATION (&stack, place, sym_addr)
+ 	default:
+ 	  {
++	    char rel_info[17]; /* log16(2^64) = 16, plus NUL.  */
++
++	    grub_snprintf (rel_info, sizeof (rel_info) - 1, "%" PRIxGRUB_UINT64_T,
++			   (grub_uint64_t) ELF_R_TYPE (rel->r_info));
+ 	    return grub_error (GRUB_ERR_NOT_IMPLEMENTED_YET,
+-			       N_("relocation 0x%x is not implemented yet"),
+-			       ELF_R_TYPE (r_info));
++			       N_("relocation 0x%s is not implemented yet"), rel_info);
+ 	  }
+ 	  break;
+ 	}
+     }
+-
+   return GRUB_ERR_NONE;
+ }
+-
+diff --git a/grub-core/kern/loongarch64/dl_helper.c b/grub-core/kern/loongarch64/dl_helper.c
+new file mode 100644
+index 0000000..68275fe
+--- /dev/null
++++ b/grub-core/kern/loongarch64/dl_helper.c
+@@ -0,0 +1,264 @@
++/* dl_helper.c - relocation helper functions for modules and grub-mkimage */
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2022 Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <grub/dl.h>
++#include <grub/elf.h>
++#include <grub/misc.h>
++#include <grub/err.h>
++#include <grub/mm.h>
++#include <grub/i18n.h>
++#include <grub/loongarch64/reloc.h>
++
++static void grub_loongarch64_stack_push (grub_loongarch64_stack_t stack, grub_uint64_t x);
++static grub_uint64_t grub_loongarch64_stack_pop (grub_loongarch64_stack_t stack);
++
++void
++grub_loongarch64_stack_init (grub_loongarch64_stack_t stack)
++{
++  stack->top = -1;
++  stack->count = LOONGARCH64_STACK_MAX;
++}
++
++static void
++grub_loongarch64_stack_push (grub_loongarch64_stack_t stack, grub_uint64_t x)
++{
++  if (stack->top == stack->count)
++    return;
++  stack->data[++stack->top] = x;
++}
++
++static grub_uint64_t
++grub_loongarch64_stack_pop (grub_loongarch64_stack_t stack)
++{
++  if (stack->top == -1)
++    return -1;
++  return stack->data[stack->top--];
++}
++
++void
++grub_loongarch64_sop_push (grub_loongarch64_stack_t stack, grub_int64_t offset)
++{
++  grub_loongarch64_stack_push (stack, offset);
++}
++
++/* opr2 = pop (), opr1 = pop (), push (opr1 - opr2) */
++void
++grub_loongarch64_sop_sub (grub_loongarch64_stack_t stack)
++{
++  grub_uint64_t a, b;
++  b = grub_loongarch64_stack_pop (stack);
++  a = grub_loongarch64_stack_pop (stack);
++  grub_loongarch64_stack_push (stack, a - b);
++}
++
++/* opr2 = pop (), opr1 = pop (), push (opr1 << opr2) */
++void
++grub_loongarch64_sop_sl (grub_loongarch64_stack_t stack)
++{
++  grub_uint64_t a, b;
++  b = grub_loongarch64_stack_pop (stack);
++  a = grub_loongarch64_stack_pop (stack);
++  grub_loongarch64_stack_push (stack, a << b);
++}
++
++/* opr2 = pop (), opr1 = pop (), push (opr1 >> opr2) */
++void
++grub_loongarch64_sop_sr (grub_loongarch64_stack_t stack)
++{
++  grub_uint64_t a, b;
++  b = grub_loongarch64_stack_pop (stack);
++  a = grub_loongarch64_stack_pop (stack);
++  grub_loongarch64_stack_push (stack, a >> b);
++}
++
++/* opr2 = pop (), opr1 = pop (), push (opr1 + opr2) */
++void
++grub_loongarch64_sop_add (grub_loongarch64_stack_t stack)
++{
++  grub_uint64_t a, b;
++  b = grub_loongarch64_stack_pop (stack);
++  a = grub_loongarch64_stack_pop (stack);
++  grub_loongarch64_stack_push (stack, a + b);
++}
++
++/* opr2 = pop (), opr1 = pop (), push (opr1 & opr2) */
++void
++grub_loongarch64_sop_and (grub_loongarch64_stack_t stack)
++{
++  grub_uint64_t a, b;
++  b = grub_loongarch64_stack_pop (stack);
++  a = grub_loongarch64_stack_pop (stack);
++  grub_loongarch64_stack_push (stack, a & b);
++}
++
++/* opr3 = pop (), opr2 = pop (), opr1 = pop (), push (opr1 ? opr2 : opr3) */
++void
++grub_loongarch64_sop_if_else (grub_loongarch64_stack_t stack)
++{
++  grub_uint64_t a, b, c;
++  c = grub_loongarch64_stack_pop (stack);
++  b = grub_loongarch64_stack_pop (stack);
++  a = grub_loongarch64_stack_pop (stack);
++
++  if (a) {
++      grub_loongarch64_stack_push (stack, b);
++  } else {
++      grub_loongarch64_stack_push (stack, c);
++  }
++}
++
++/* opr1 = pop (), (*(uint32_t *) PC) [14 ... 10] = opr1 [4 ... 0] */
++void
++grub_loongarch64_sop_32_s_10_5 (grub_loongarch64_stack_t stack,
++				grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++  *place |= ((a & 0x1f) << 10);
++}
++
++/* opr1 = pop (), (*(uint32_t *) PC) [21 ... 10] = opr1 [11 ... 0] */
++void
++grub_loongarch64_sop_32_u_10_12 (grub_loongarch64_stack_t stack,
++				 grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++  *place = *place | ((a & 0xfff) << 10);
++}
++
++/* opr1 = pop (), (*(uint32_t *) PC) [21 ... 10] = opr1 [11 ... 0] */
++void
++grub_loongarch64_sop_32_s_10_12 (grub_loongarch64_stack_t stack,
++				 grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++  *place = (*place) | ((a & 0xfff) << 10);
++}
++
++/* opr1 = pop (), (*(uint32_t *) PC) [25 ... 10] = opr1 [15 ... 0] */
++void
++grub_loongarch64_sop_32_s_10_16 (grub_loongarch64_stack_t stack,
++				 grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++  *place = (*place) | ((a & 0xffff) << 10);
++}
++
++/* opr1 = pop (), (*(uint32_t *) PC) [25 ... 10] = opr1 [17 ... 2] */
++void
++grub_loongarch64_sop_32_s_10_16_s2 (grub_loongarch64_stack_t stack,
++				    grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++  *place = (*place) | (((a >> 2) & 0xffff) << 10);
++}
++
++/* opr1 = pop (), (*(uint32_t *) PC) [24 ... 5] = opr1 [19 ... 0] */
++void
++grub_loongarch64_sop_32_s_5_20 (grub_loongarch64_stack_t stack, grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++  *place = (*place) | ((a & 0xfffff)<<5);
++}
++
++/* opr1 = pop (),
++   (*(uint32_t *) PC) [4 ... 0] = opr1 [22 ... 18]
++   (*(uint32_t *) PC) [25 ...10] = opr1 [17 ... 2]
++ */
++void
++grub_loongarch64_sop_32_s_0_5_10_16_s2 (grub_loongarch64_stack_t stack,
++					grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++
++  *place =(*place) | (((a >> 2) & 0xffff) << 10);
++  *place =(*place) | ((a >> 18) & 0x1f);
++}
++
++/*
++   opr1 = pop ()
++   (*(uint32_t *) PC) [9 ... 0] = opr1 [27 ... 18],
++   (*(uint32_t *) PC) [25 ... 10] = opr1 [17 ... 2]
++*/
++void
++grub_loongarch64_sop_32_s_0_10_10_16_s2 (grub_loongarch64_stack_t stack,
++					 grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++  *place =(*place) | (((a >> 2) & 0xffff) << 10);
++  *place =(*place) | ((a >> 18) & 0x3ff);
++}
++
++void grub_loongarch64_b26 (grub_uint32_t *place, grub_int64_t offset)
++{
++  grub_uint32_t val;
++  const grub_uint32_t insmask = grub_cpu_to_le32_compile_time (0xfc000000);
++
++  grub_dprintf ("dl", "  reloc_xxxx64 %p %c= 0x%llx\n",
++		place, offset > 0 ? '+' : '-',
++		offset < 0 ? (long long) -(unsigned long long) offset : offset);
++
++  val = ((offset >> 18) & 0x3ff) | (((offset >> 2) & 0xffff) << 10);
++
++  *place &= insmask;
++  *place |= grub_cpu_to_le32 (val) & ~insmask;
++}
++
++void grub_loongarch64_xxx_hi20 (grub_uint32_t *place, grub_int64_t offset)
++{
++  const grub_uint32_t insmask = grub_cpu_to_le32_compile_time (0xfe00001f);
++  grub_uint32_t val;
++
++  offset >>= 12;
++  val = ((offset & 0xfffff) << 5);
++
++  *place &= insmask;
++  *place |= grub_cpu_to_le32 (val) & ~insmask;
++}
++
++void grub_loongarch64_xxx_lo12 (grub_uint32_t *place, grub_int64_t offset)
++{
++  const grub_uint32_t insmask = grub_cpu_to_le32_compile_time (0xffc003ff);
++
++  *place &= insmask;
++  *place |= grub_cpu_to_le32 (offset << 10) & ~insmask;
++}
++
++void grub_loongarch64_xxx64_hi12 (grub_uint32_t *place, grub_int64_t offset)
++{
++  const grub_uint32_t insmask = grub_cpu_to_le32_compile_time (0xffc003ff);
++  grub_uint32_t val;
++
++  offset >>= 52;
++  val = ((offset & 0xfff) << 10);
++
++  *place &= insmask;
++  *place |= grub_cpu_to_le32 (val) & ~insmask;
++}
++
++void grub_loongarch64_xxx64_lo20 (grub_uint32_t *place, grub_int64_t offset)
++{
++  const grub_uint32_t insmask = grub_cpu_to_le32_compile_time (0xfe00001f);
++  grub_uint32_t val;
++
++  offset >>= 32;
++  val = ((offset & 0xfffff) << 5);
++
++  *place &= insmask;
++  *place |= grub_cpu_to_le32 (val) & ~insmask;
++}
+diff --git a/grub-core/lib/loongarch64/relocator.c b/grub-core/lib/loongarch64/relocator.c
+index 14bed46..4b253ca 100644
+--- a/grub-core/lib/loongarch64/relocator.c
++++ b/grub-core/lib/loongarch64/relocator.c
+@@ -72,12 +72,9 @@ write_reg (int regn, grub_uint64_t val, void **target)
+ static void
+ write_jump (int regn, void **target)
+ {
+-  grub_uint32_t andi=0x4c000000;
+-  grub_uint32_t nop=0x03400000;
++  grub_uint32_t jirl=0x4c000000;
+ 
+-  *(grub_uint32_t *) *target = (andi | (grub_uint32_t)(regn<<5));
+-  *target = ((grub_uint32_t *) *target) + 1;
+-  *(grub_uint32_t *) *target = nop;
++  *(grub_uint32_t *) *target = (jirl | (grub_uint32_t)(regn<<5));
+   *target = ((grub_uint32_t *) *target) + 1;
+ }
+ 
+@@ -148,8 +145,7 @@ grub_relocator64_boot (struct grub_relocator *rel,
+   grub_arch_sync_caches ((void *) relst, relsize);
+ 
+   asm volatile (
+-                 "ibar 0 \n"
+-                 "dbar 0 \n");
++                 "ibar 0 \n");
+ 
+   grub_uint64_t val;
+   __asm__ __volatile__(
+diff --git a/grub-core/loader/loongarch64/linux.c b/grub-core/loader/loongarch64/linux.c
+index f29ac88..783054b 100644
+--- a/grub-core/loader/loongarch64/linux.c
++++ b/grub-core/loader/loongarch64/linux.c
+@@ -173,7 +173,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
+ 		      N_("this ELF file is not of the right type"));
+ 	  goto fail;
+ 	}
+-      if (elf->ehdr.ehdr64.e_machine != EM_LOONGARCH64)
++      if (elf->ehdr.ehdr64.e_machine != EM_LOONGARCH)
+ 	{
+ 	  grub_error (GRUB_ERR_BAD_OS, "invalid magic number");
+ 	  goto fail;
+diff --git a/include/grub/efi/pe32.h b/include/grub/efi/pe32.h
+index a843873..a386f27 100644
+--- a/include/grub/efi/pe32.h
++++ b/include/grub/efi/pe32.h
+@@ -77,9 +77,10 @@ struct grub_pe32_coff_header
+ #define GRUB_PE32_MACHINE_X86_64		0x8664
+ #define GRUB_PE32_MACHINE_ARMTHUMB_MIXED	0x01c2
+ #define GRUB_PE32_MACHINE_ARM64			0xAA64
++#define GRUB_PE32_MACHINE_LOONGARCH32		0x6232
++#define GRUB_PE32_MACHINE_LOONGARCH64		0x6264
+ #define GRUB_PE32_MACHINE_RISCV32		0x5032
+ #define GRUB_PE32_MACHINE_RISCV64		0x5064
+-#define GRUB_PE32_MACHINE_LOONGARCH64		0x6264
+ 
+ #define GRUB_PE32_RELOCS_STRIPPED		0x0001
+ #define GRUB_PE32_EXECUTABLE_IMAGE		0x0002
+@@ -326,23 +327,24 @@ struct grub_pe32_fixup_block
+ 
+ #define GRUB_PE32_FIXUP_ENTRY(type, offset)	(((type) << 12) | (offset))
+ 
+-#define GRUB_PE32_REL_BASED_ABSOLUTE	0
+-#define GRUB_PE32_REL_BASED_HIGH	1
+-#define GRUB_PE32_REL_BASED_LOW		2
+-#define GRUB_PE32_REL_BASED_HIGHLOW	3
+-#define GRUB_PE32_REL_BASED_HIGHADJ	4
+-#define GRUB_PE32_REL_BASED_MIPS_JMPADDR 5
+-#define GRUB_PE32_REL_BASED_ARM_MOV32A  5
+-#define GRUB_PE32_REL_BASED_RISCV_HI20	5
+-#define GRUB_PE32_REL_BASED_SECTION	6
+-#define GRUB_PE32_REL_BASED_REL		7
+-#define GRUB_PE32_REL_BASED_ARM_MOV32T  7
+-#define GRUB_PE32_REL_BASED_RISCV_LOW12I 7
+-#define GRUB_PE32_REL_BASED_RISCV_LOW12S 8
+-#define GRUB_PE32_REL_BASED_LOONGARCH64 8
+-#define GRUB_PE32_REL_BASED_IA64_IMM64	9
+-#define GRUB_PE32_REL_BASED_DIR64	10
+-#define GRUB_PE32_REL_BASED_HIGH3ADJ	11
++#define GRUB_PE32_REL_BASED_ABSOLUTE		0
++#define GRUB_PE32_REL_BASED_HIGH		1
++#define GRUB_PE32_REL_BASED_LOW			2
++#define GRUB_PE32_REL_BASED_HIGHLOW		3
++#define GRUB_PE32_REL_BASED_HIGHADJ		4
++#define GRUB_PE32_REL_BASED_MIPS_JMPADDR	5
++#define GRUB_PE32_REL_BASED_ARM_MOV32A  	5
++#define GRUB_PE32_REL_BASED_RISCV_HI20		5
++#define GRUB_PE32_REL_BASED_SECTION		6
++#define GRUB_PE32_REL_BASED_REL			7
++#define GRUB_PE32_REL_BASED_ARM_MOV32T  	7
++#define GRUB_PE32_REL_BASED_RISCV_LOW12I	7
++#define GRUB_PE32_REL_BASED_RISCV_LOW12S	8
++#define GRUB_PE32_REL_BASED_LOONGARCH32_MARK_LA	8
++#define GRUB_PE32_REL_BASED_LOONGARCH64_MARK_LA	8
++#define GRUB_PE32_REL_BASED_IA64_IMM64		9
++#define GRUB_PE32_REL_BASED_DIR64		10
++#define GRUB_PE32_REL_BASED_HIGH3ADJ		11
+ 
+ struct grub_pe32_symbol
+ {
+diff --git a/include/grub/elf.h b/include/grub/elf.h
+index 2354350..b879591 100644
+--- a/include/grub/elf.h
++++ b/include/grub/elf.h
+@@ -248,7 +248,7 @@ typedef struct
+ #define EM_NUM		95
+ #define EM_AARCH64	183		/* ARM 64-bit architecture */
+ #define EM_RISCV	243		/* RISC-V */
+-#define EM_LOONGARCH64  258             /* LoongArch64 architecture */
++#define EM_LOONGARCH	258		/* LoongArch */
+ 
+ /* If it is necessary to assign new unofficial EM_* values, please
+    pick large random numbers (0x8523, 0xa7f2, etc.) to minimize the
+@@ -1450,60 +1450,6 @@ typedef struct
+ #define OHWA0_R4KEOP_CHECKED	0x00000001
+ #define OHWA1_R4KEOP_CLEAN	0x00000002
+ 
+-/* LOONGARCH64 relocs.  */
+-#define R_LARCH_NONE	0
+-#define R_LARCH_32	1
+-#define R_LARCH_64	2
+-#define R_LARCH_RELATIVE	3
+-#define R_LARCH_COPY	4
+-#define R_LARCH_JUMP_SLOT	5
+-#define R_LARCH_TLS_DTPMOD32	6
+-#define R_LARCH_TLS_DTPMOD64	7
+-#define R_LARCH_TLS_DTPREL32	8
+-#define R_LARCH_TLS_DTPREL64	9
+-#define R_LARCH_TLS_TPREL32	10
+-#define R_LARCH_TLS_TPREL64	11
+-#define R_LARCH_IRELATIVE	12
+-#define R_LARCH_MARK_LA	20
+-#define R_LARCH_MARK_PCREL	21
+-#define R_LARCH_SOP_PUSH_PCREL	22
+-#define R_LARCH_SOP_PUSH_ABSOLUTE	23
+-#define R_LARCH_SOP_PUSH_DUP	24
+-#define R_LARCH_SOP_PUSH_GPREL	25
+-#define R_LARCH_SOP_PUSH_TLS_TPREL	26
+-#define R_LARCH_SOP_PUSH_TLS_GOT	27
+-#define R_LARCH_SOP_PUSH_TLS_GD	28
+-#define R_LARCH_SOP_PUSH_PLT_PCREL	29
+-#define R_LARCH_SOP_ASSERT	30
+-#define R_LARCH_SOP_NOT	31
+-#define R_LARCH_SOP_SUB	32
+-#define R_LARCH_SOP_SL	33
+-#define R_LARCH_SOP_SR	34
+-#define R_LARCH_SOP_ADD	35
+-#define R_LARCH_SOP_AND	36
+-#define R_LARCH_SOP_IF_ELSE	37
+-#define R_LARCH_SOP_POP_32_S_10_5	38
+-#define R_LARCH_SOP_POP_32_U_10_12	39
+-#define R_LARCH_SOP_POP_32_S_10_12	40
+-#define R_LARCH_SOP_POP_32_S_10_16	41
+-#define R_LARCH_SOP_POP_32_S_10_16_S2	42
+-#define R_LARCH_SOP_POP_32_S_5_20	43
+-#define R_LARCH_SOP_POP_32_S_0_5_10_16_S2	44
+-#define R_LARCH_SOP_POP_32_S_0_10_10_16_S2	45
+-#define R_LARCH_SOP_POP_32_U	46
+-#define R_LARCH_ADD8	47
+-#define R_LARCH_ADD16	48
+-#define R_LARCH_ADD24	49
+-#define R_LARCH_ADD32	50
+-#define R_LARCH_ADD64	51
+-#define R_LARCH_SUB8	52
+-#define R_LARCH_SUB16	53
+-#define R_LARCH_SUB24	54
+-#define R_LARCH_SUB32	55
+-#define R_LARCH_SUB64	56
+-#define R_LARCH_GNU_VTINHERIT	57
+-#define R_LARCH_GNU_VTENTRY	58
+-
+ /* MIPS relocs.  */
+ 
+ #define R_MIPS_NONE		0	/* No reloc */
+@@ -2586,6 +2532,35 @@ typedef Elf32_Addr Elf32_Conflict;
+ #define R_RISCV_SET32           56
+ #define R_RISCV_32_PCREL        57
+ 
++/* LoongArch relocations */
++#define R_LARCH_NONE			      0
++#define R_LARCH_64			      2
++#define R_LARCH_MARK_LA			      20
++#define R_LARCH_SOP_PUSH_PCREL		      22
++#define R_LARCH_SOP_PUSH_ABSOLUTE	      23
++#define R_LARCH_SOP_PUSH_PLT_PCREL	      29
++#define R_LARCH_SOP_SUB			      32
++#define R_LARCH_SOP_SL			      33
++#define R_LARCH_SOP_SR			      34
++#define R_LARCH_SOP_ADD			      35
++#define R_LARCH_SOP_AND			      36
++#define R_LARCH_SOP_IF_ELSE		      37
++#define R_LARCH_SOP_POP_32_S_10_5	      38
++#define R_LARCH_SOP_POP_32_U_10_12	      39
++#define R_LARCH_SOP_POP_32_S_10_12	      40
++#define R_LARCH_SOP_POP_32_S_10_16	      41
++#define R_LARCH_SOP_POP_32_S_10_16_S2	      42
++#define R_LARCH_SOP_POP_32_S_5_20	      43
++#define R_LARCH_SOP_POP_32_S_0_5_10_16_S2     44
++#define R_LARCH_SOP_POP_32_S_0_10_10_16_S2    45
++#define R_LARCH_B26			      66
++#define R_LARCH_ABS_HI20		      67
++#define R_LARCH_ABS_LO12		      68
++#define R_LARCH_ABS64_LO20		      69
++#define R_LARCH_ABS64_HI12		      70
++#define R_LARCH_PCALA_HI20		      71
++#define R_LARCH_PCALA_LO12		      72
++
+ #ifdef GRUB_TARGET_WORDSIZE
+ #if GRUB_TARGET_WORDSIZE == 32
+ 
+diff --git a/include/grub/loongarch64/reloc.h b/include/grub/loongarch64/reloc.h
+new file mode 100644
+index 0000000..2106ba2
+--- /dev/null
++++ b/include/grub/loongarch64/reloc.h
+@@ -0,0 +1,113 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2022 Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#ifndef GRUB_LOONGARCH64_RELOC_H
++#define GRUB_LOONGARCH64_RELOC_H 1
++#include <grub/types.h>
++
++#define LOONGARCH64_STACK_MAX 16
++
++struct grub_loongarch64_stack
++{
++  grub_uint64_t data[LOONGARCH64_STACK_MAX];
++  int count;
++  int top;
++};
++
++typedef struct grub_loongarch64_stack* grub_loongarch64_stack_t;
++
++void grub_loongarch64_stack_init	     (grub_loongarch64_stack_t stack);
++void grub_loongarch64_sop_push		     (grub_loongarch64_stack_t stack,
++					      grub_int64_t offset);
++void grub_loongarch64_sop_sub		     (grub_loongarch64_stack_t stack);
++void grub_loongarch64_sop_sl		     (grub_loongarch64_stack_t stack);
++void grub_loongarch64_sop_sr		     (grub_loongarch64_stack_t stack);
++void grub_loongarch64_sop_add		     (grub_loongarch64_stack_t stack);
++void grub_loongarch64_sop_and		     (grub_loongarch64_stack_t stack);
++void grub_loongarch64_sop_if_else	     (grub_loongarch64_stack_t stack);
++void grub_loongarch64_sop_32_s_10_5	     (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++void grub_loongarch64_sop_32_u_10_12	     (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++void grub_loongarch64_sop_32_s_10_12	     (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++void grub_loongarch64_sop_32_s_10_16	     (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++void grub_loongarch64_sop_32_s_10_16_s2	     (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++void grub_loongarch64_sop_32_s_5_20	     (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++void grub_loongarch64_sop_32_s_0_5_10_16_s2  (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++void grub_loongarch64_sop_32_s_0_10_10_16_s2 (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++
++void grub_loongarch64_b26	  (grub_uint32_t *place, grub_int64_t offset);
++void grub_loongarch64_xxx_hi20	  (grub_uint32_t *place, grub_int64_t offset);
++void grub_loongarch64_xxx_lo12	  (grub_uint32_t *place, grub_int64_t offset);
++void grub_loongarch64_xxx64_hi12  (grub_uint32_t *place, grub_int64_t offset);
++void grub_loongarch64_xxx64_lo20  (grub_uint32_t *place, grub_int64_t offset);
++
++#define GRUB_LOONGARCH64_RELOCATION(STACK, PLACE, OFFSET)	\
++  case R_LARCH_SOP_PUSH_ABSOLUTE:				\
++    grub_loongarch64_sop_push (STACK, OFFSET);			\
++    break;							\
++  case R_LARCH_SOP_SUB:						\
++    grub_loongarch64_sop_sub (STACK);				\
++    break;							\
++  case R_LARCH_SOP_SL:						\
++    grub_loongarch64_sop_sl (STACK);				\
++    break;							\
++  case R_LARCH_SOP_SR:						\
++    grub_loongarch64_sop_sr (STACK);				\
++    break;							\
++  case R_LARCH_SOP_ADD:						\
++    grub_loongarch64_sop_add (STACK);				\
++    break;							\
++  case R_LARCH_SOP_AND:						\
++    grub_loongarch64_sop_and (STACK);				\
++    break;							\
++  case R_LARCH_SOP_IF_ELSE:					\
++    grub_loongarch64_sop_if_else (STACK);			\
++    break;							\
++  case R_LARCH_SOP_POP_32_S_10_5:				\
++    grub_loongarch64_sop_32_s_10_5 (STACK, PLACE);		\
++    break;							\
++  case R_LARCH_SOP_POP_32_U_10_12:				\
++    grub_loongarch64_sop_32_u_10_12 (STACK, PLACE);		\
++    break;							\
++  case R_LARCH_SOP_POP_32_S_10_12:				\
++    grub_loongarch64_sop_32_s_10_12 (STACK, PLACE);		\
++    break;							\
++  case R_LARCH_SOP_POP_32_S_10_16:				\
++    grub_loongarch64_sop_32_s_10_16 (STACK, PLACE);		\
++    break;							\
++  case R_LARCH_SOP_POP_32_S_10_16_S2:				\
++    grub_loongarch64_sop_32_s_10_16_s2 (STACK, PLACE);		\
++    break;							\
++  case R_LARCH_SOP_POP_32_S_5_20:				\
++    grub_loongarch64_sop_32_s_5_20 (STACK, PLACE);		\
++    break;							\
++  case R_LARCH_SOP_POP_32_S_0_5_10_16_S2:			\
++    grub_loongarch64_sop_32_s_0_5_10_16_s2 (STACK, PLACE);	\
++    break;							\
++  case R_LARCH_SOP_POP_32_S_0_10_10_16_S2:			\
++    grub_loongarch64_sop_32_s_0_10_10_16_s2 (STACK, PLACE);	\
++    break;
++
++#endif /* GRUB_LOONGARCH64_RELOC_H */
+diff --git a/util/grub-mkimagexx.c b/util/grub-mkimagexx.c
+index 9e51820..eaed90d 100644
+--- a/util/grub-mkimagexx.c
++++ b/util/grub-mkimagexx.c
+@@ -44,6 +44,7 @@
+ #include <grub/arm/reloc.h>
+ #include <grub/arm64/reloc.h>
+ #include <grub/ia64/reloc.h>
++#include <grub/loongarch64/reloc.h>
+ #include <grub/osdep/hostfile.h>
+ #include <grub/util/install.h>
+ #include <grub/util/mkimage.h>
+@@ -784,9 +785,8 @@ SUFFIX (relocate_addrs) (Elf_Ehdr *e, struct section_metadata *smd,
+   struct grub_ia64_trampoline *tr = (void *) (pe_target + tramp_off);
+   grub_uint64_t *gpptr = (void *) (pe_target + got_off);
+   unsigned unmatched_adr_got_page = 0;
+-  grub_uint64_t oprs[10240]= {0};
+-  int opri = -1;
+-  grub_uint32_t la_abs = 0;
++  struct grub_loongarch64_stack stack;
++  grub_loongarch64_stack_init (&stack);
+ #define MASK19 ((1 << 19) - 1)
+ #else
+   grub_uint32_t *tr = (void *) (pe_target + tramp_off);
+@@ -1126,172 +1126,70 @@ SUFFIX (relocate_addrs) (Elf_Ehdr *e, struct section_metadata *smd,
+ 		   }
+ 	       break;
+ 	       }
+-	     case EM_LOONGARCH64:
++	     case EM_LOONGARCH:
+ 	       {
++		 grub_int64_t pc;
++
++		 grub_uint32_t *t32 = (grub_uint32_t *) target;
+ 		 sym_addr += addend;
++
++		 pc = offset + target_section_addr + image_target->vaddr_offset;
++
+ 		 switch (ELF_R_TYPE (info))
+ 		   {
+-			case R_LARCH_64:
+-				{
+-				*target=(grub_uint64_t)sym_addr;
+-				}
+-				break;
+-			case R_LARCH_MARK_LA:
+-				{
+-				la_abs=1;
+-				}
+-				break;
+-			case R_LARCH_SOP_PUSH_PCREL:
+-				{
+-				opri++;
+-				oprs[opri]=(grub_uint64_t)(sym_addr-(target_section_addr+offset+image_target->vaddr_offset));
+-				}
+-				break;
+-			case R_LARCH_SOP_PUSH_ABSOLUTE:
+-				{
+-				opri++;
+-				oprs[opri]=(grub_uint64_t)sym_addr;
+-				}
+-				break;
+-			case R_LARCH_SOP_PUSH_PLT_PCREL:
+-				{
+-				opri++;
+-				oprs[opri]=(grub_uint64_t)(sym_addr-(target_section_addr+offset+image_target->vaddr_offset));
+-				}
+-				break;
+-			case R_LARCH_SOP_SUB:
+-				{
+-				grub_uint64_t opr2=oprs[opri];
+-				opri--;
+-				grub_uint64_t opr1=oprs[opri];
+-				opri--;
+-				opri++;
+-				oprs[opri]=opr1 - opr2;
+-				}
+-				break;
+-			case R_LARCH_SOP_SL:
+-				{
+-				grub_uint64_t opr2=oprs[opri];
+-				opri--;
+-				grub_uint64_t opr1=oprs[opri];
+-				opri--;
+-				opri++;
+-				oprs[opri]=opr1 << opr2;
+-				}
+-				break;
+-			case R_LARCH_SOP_SR:
+-				{
+-				grub_uint64_t opr2=oprs[opri];
+-				opri--;
+-				grub_uint64_t opr1=oprs[opri];
+-				opri--;
+-				opri++;
+-				oprs[opri]=opr1 >> opr2;
+-				}
+-				break;
+-			case R_LARCH_SOP_ADD:
+-				{
+-				grub_uint64_t opr2=oprs[opri];
+-				opri--;
+-				grub_uint64_t opr1=oprs[opri];
+-				opri--;
+-				opri++;
+-				oprs[opri]=opr1 + opr2;
+-				}
+-				break;
+-			case R_LARCH_SOP_AND:
+-				{
+-				grub_uint64_t opr2=oprs[opri];
+-				opri--;
+-				grub_uint64_t opr1=oprs[opri];
+-				opri--;
+-				opri++;
+-				oprs[opri]=opr1 & opr2;
+-				}
+-				break;
+-			case R_LARCH_SOP_IF_ELSE:
+-				{
+-				grub_uint64_t opr3=oprs[opri];
+-				opri--;
+-				grub_uint64_t opr2=oprs[opri];
+-				opri--;
+-				grub_uint64_t opr1=oprs[opri];
+-				opri--;
+-				if(opr1){
+-					opri++;
+-					oprs[opri]=opr2;
+-				} else {
+-					opri++;
+-					oprs[opri]=opr3;
+-				}
+-				}
+-				break;
+-			case R_LARCH_SOP_POP_32_S_10_5:
+-				{
+-				grub_uint64_t opr1 = oprs[opri];
+-				opri--;
+-				*target=(*target) | ((opr1 & 0x1f) << 10);
+-				}
+-				break;
+-			case R_LARCH_SOP_POP_32_U_10_12:
+-				{
+-				grub_uint64_t opr1 = oprs[opri];
+-				opri--;
+-				*target=(*target) | ((opr1 & 0xfff) << 10);
+-				}
+-				break;
+-			case R_LARCH_SOP_POP_32_S_10_12:
+-				{
+-				if(la_abs==1)
+-					la_abs=0;
+-				grub_uint64_t opr1 = oprs[opri];
+-				opri--;
+-				*target = (*target) | ((opr1 & 0xfff) << 10);
+-				}
+-				break;
+-			case R_LARCH_SOP_POP_32_S_10_16:
+-				{
+-				grub_uint64_t opr1 = oprs[opri];
+-				opri--;
+-				*target = (*target) | ((opr1 & 0xffff) << 10);
+-				}
+-				break;
+-			case R_LARCH_SOP_POP_32_S_10_16_S2:
+-				{
+-				grub_uint64_t opr1 = oprs[opri];
+-				opri--;
+-				*target = (*target) | (((opr1 >> 2) & 0xffff) << 10);
+-				}
+-				break;
+-			case R_LARCH_SOP_POP_32_S_5_20:
+-				{
+-				grub_uint64_t opr1 = oprs[opri];
+-				opri--;
+-				*target = (*target) | ((opr1 & 0xfffff)<<5)	;
+-				}
+-				break;
+-			case R_LARCH_SOP_POP_32_S_0_5_10_16_S2:
+-				{
+-				grub_uint64_t opr1 = oprs[opri];
+-				opri--;
+-				*target =(*target) | (((opr1 >> 2) & 0xffff) << 10);
+-				*target =(*target) | ((opr1 >> 18) & 0x1f);
+-				}
+-				break;
+-			case R_LARCH_SOP_POP_32_S_0_10_10_16_S2:
+-				{
+-				grub_uint64_t opr1 = oprs[opri];
+-				opri--;
+-				*target =(*target) | (((opr1 >> 2) & 0xffff) << 10);
+-				*target =(*target) | ((opr1 >> 18) & 0x3ff);
+-				}
+-				break;
++		   case R_LARCH_64:
++		     {
++		       grub_uint64_t *t64 = (grub_uint64_t *) target;
++		       *t64 = grub_host_to_target64 (grub_target_to_host64 (*t64) + sym_addr);
++		     }
++		     break;
++		   case R_LARCH_MARK_LA:
++		     break;
++		   case R_LARCH_SOP_PUSH_PCREL:
++		   case R_LARCH_SOP_PUSH_PLT_PCREL:
++		     grub_loongarch64_sop_push (&stack, sym_addr
++						-(target_section_addr
++						  +offset
++						  +image_target->vaddr_offset));
++		     break;
++		   case R_LARCH_B26:
++		     {
++		       grub_int64_t off;
++
++		       off = sym_addr - target_section_addr - offset - image_target->vaddr_offset;
++
++		       grub_loongarch64_b26 (t32, off);
++		     }
++		     break;
++		   case R_LARCH_ABS_HI20:
++		     grub_loongarch64_xxx_hi20 (t32, sym_addr);
++		     break;
++		   case R_LARCH_ABS64_LO20:
++		     grub_loongarch64_xxx64_lo20 (t32, sym_addr);
++		     break;
++		   case R_LARCH_ABS64_HI12:
++		     grub_loongarch64_xxx64_hi12 (t32, sym_addr);
++		     break;
++		   case R_LARCH_PCALA_HI20:
++		     {
++		       grub_int32_t hi20;
++
++		       hi20 = (((sym_addr + 0x800) & ~0xfffULL) - (pc & ~0xfffULL));
++
++		       grub_loongarch64_xxx_hi20 (t32, hi20);
++		     }
++		     break;
++		   case R_LARCH_ABS_LO12:
++		   case R_LARCH_PCALA_LO12:
++		     grub_loongarch64_xxx_lo12 (t32, sym_addr);
++		     break;
++		   GRUB_LOONGARCH64_RELOCATION (&stack, target, sym_addr)
+ 		   default:
+ 		     grub_util_error (_("relocation 0x%x is not implemented yet"),
+ 				      (unsigned int) ELF_R_TYPE (info));
+ 		     break;
+ 		   }
+-	       break;
++		 break;
+ 	       }
+ #endif
+ #if defined(MKIMAGE_ELF32)
+@@ -1848,133 +1746,63 @@ translate_relocation_pe (struct translate_context *ctx,
+ 	  break;
+ 	}
+       break;
+-      break;
+-    case EM_LOONGARCH64:
++    case EM_LOONGARCH:
++#if defined(MKIMAGE_ELF64)
+       switch (ELF_R_TYPE (info))
+ 	{
+-			case R_LARCH_NONE:
+-				break;
+-			case R_LARCH_32:
+-				break;
+-			case R_LARCH_64:
+-				{
+-				ctx->current_address = add_fixup_entry (
+-				 &ctx->lst,
+-				 GRUB_PE32_REL_BASED_DIR64,
+-				 addr, 0, ctx->current_address,
+-				 image_target);
+-				}
+-				break;
+-			case R_LARCH_RELATIVE:
+-				break;
+-			case R_LARCH_COPY:
+-				break;
+-			case R_LARCH_JUMP_SLOT:
+-				break;
+-			case R_LARCH_TLS_DTPMOD32:
+-				break;
+-			case R_LARCH_TLS_DTPMOD64:
+-				break;
+-			case R_LARCH_TLS_DTPREL32:
+-				break;
+-			case R_LARCH_TLS_DTPREL64:
+-				break;
+-			case R_LARCH_TLS_TPREL32:
+-				break;
+-			case R_LARCH_TLS_TPREL64:
+-				break;
+-			case R_LARCH_IRELATIVE:
+-				break;
+-			case R_LARCH_MARK_LA:
+-				{
+-				ctx->current_address = add_fixup_entry (
+-				 &ctx->lst,
+-				 GRUB_PE32_REL_BASED_LOONGARCH64,
+-				 addr, 0, ctx->current_address,
+-				 image_target);
+-				}
+-				break;
+-			case R_LARCH_MARK_PCREL:
+-				break;
+-			case R_LARCH_SOP_PUSH_PCREL:
+-				break;
+-			case R_LARCH_SOP_PUSH_ABSOLUTE:
+-				break;
+-			case R_LARCH_SOP_PUSH_DUP:
+-				break;
+-			case R_LARCH_SOP_PUSH_GPREL:
+-				break;
+-			case R_LARCH_SOP_PUSH_TLS_TPREL:
+-				break;
+-			case R_LARCH_SOP_PUSH_TLS_GOT:
+-				break;
+-			case R_LARCH_SOP_PUSH_TLS_GD:
+-				break;
+-			case R_LARCH_SOP_PUSH_PLT_PCREL:
+-				break;
+-			case R_LARCH_SOP_ASSERT:
+-				break;
+-			case R_LARCH_SOP_NOT:
+-				break;
+-			case R_LARCH_SOP_SUB:
+-				break;
+-			case R_LARCH_SOP_SL:
+-				break;
+-			case R_LARCH_SOP_SR:
+-				break;
+-			case R_LARCH_SOP_ADD:
+-				break;
+-			case R_LARCH_SOP_AND:
+-				break;
+-			case R_LARCH_SOP_IF_ELSE:
+-				break;
+-			case R_LARCH_SOP_POP_32_S_10_5:
+-				break;
+-			case R_LARCH_SOP_POP_32_U_10_12:
+-				break;
+-			case R_LARCH_SOP_POP_32_S_10_12:
+-				break;
+-			case R_LARCH_SOP_POP_32_S_10_16:
+-				break;
+-			case R_LARCH_SOP_POP_32_S_10_16_S2:
+-				break;
+-			case R_LARCH_SOP_POP_32_S_5_20:
+-				break;
+-			case R_LARCH_SOP_POP_32_S_0_5_10_16_S2:
+-				break;
+-			case R_LARCH_SOP_POP_32_S_0_10_10_16_S2:
+-				break;
+-			case R_LARCH_SOP_POP_32_U:
+-				break;
+-			case R_LARCH_ADD8:
+-				break;
+-			case R_LARCH_ADD16:
+-				break;
+-			case R_LARCH_ADD24:
+-				break;
+-			case R_LARCH_ADD32:
+-				break;
+-			case R_LARCH_ADD64:
+-				break;
+-			case R_LARCH_SUB8:
+-				break;
+-			case R_LARCH_SUB16:
+-				break;
+-			case R_LARCH_SUB24:
+-				break;
+-			case R_LARCH_SUB32:
+-				break;
+-			case R_LARCH_SUB64:
+-				break;
+-			case R_LARCH_GNU_VTINHERIT:
+-				break;
+-			case R_LARCH_GNU_VTENTRY:
+-				break;
++	case R_LARCH_64:
++	  {
++	    ctx->current_address = add_fixup_entry (&ctx->lst,
++						    GRUB_PE32_REL_BASED_DIR64,
++						    addr, 0, ctx->current_address,
++						    image_target);
++	  }
++	  break;
++	case R_LARCH_MARK_LA:
++	  {
++	    ctx->current_address = add_fixup_entry (&ctx->lst,
++						    GRUB_PE32_REL_BASED_LOONGARCH64_MARK_LA,
++						    addr, 0, ctx->current_address,
++						    image_target);
++	  }
++	  break;
++	  /* Relative relocations do not require fixup entries. */
++	case R_LARCH_NONE:
++	case R_LARCH_SOP_PUSH_PCREL:
++	case R_LARCH_SOP_PUSH_ABSOLUTE:
++	case R_LARCH_SOP_PUSH_PLT_PCREL:
++	case R_LARCH_SOP_SUB:
++	case R_LARCH_SOP_SL:
++	case R_LARCH_SOP_SR:
++	case R_LARCH_SOP_ADD:
++	case R_LARCH_SOP_AND:
++	case R_LARCH_SOP_IF_ELSE:
++	case R_LARCH_SOP_POP_32_S_10_5:
++	case R_LARCH_SOP_POP_32_U_10_12:
++	case R_LARCH_SOP_POP_32_S_10_12:
++	case R_LARCH_SOP_POP_32_S_10_16:
++	case R_LARCH_SOP_POP_32_S_10_16_S2:
++	case R_LARCH_SOP_POP_32_S_5_20:
++	case R_LARCH_SOP_POP_32_S_0_5_10_16_S2:
++	case R_LARCH_SOP_POP_32_S_0_10_10_16_S2:
++	case R_LARCH_B26:
++	case R_LARCH_ABS_HI20:
++	case R_LARCH_ABS_LO12:
++	case R_LARCH_ABS64_LO20:
++	case R_LARCH_ABS64_HI12:
++	case R_LARCH_PCALA_HI20:
++	case R_LARCH_PCALA_LO12:
++	  grub_util_info ("  %s:  not adding fixup: 0x%08x : 0x%08x",
++			  __FUNCTION__,
++			  (unsigned int) addr,
++			  (unsigned int) ctx->current_address);
++	  break;
+ 	default:
+ 	  grub_util_error (_("relocation 0x%x is not implemented yet"),
+ 			   (unsigned int) ELF_R_TYPE (info));
+ 	  break;
+ 	}
++#endif /* defined(MKIMAGE_ELF64) */
+       break;
+ #if defined(MKIMAGE_ELF32)
+     case EM_ARM:
+diff --git a/util/grub-module-verifier.c b/util/grub-module-verifier.c
+index ce77ff7..91d9e8f 100644
+--- a/util/grub-module-verifier.c
++++ b/util/grub-module-verifier.c
+@@ -119,6 +119,39 @@ struct grub_module_verifier_arch archs[] = {
+       R_AARCH64_PREL32,
+       -1
+     } },
++  { "loongarch64", 8, 0, EM_LOONGARCH, GRUB_MODULE_VERIFY_SUPPORTS_REL | GRUB_MODULE_VERIFY_SUPPORTS_RELA, (int[]){
++      R_LARCH_NONE,
++      R_LARCH_64,
++      R_LARCH_MARK_LA,
++      R_LARCH_SOP_PUSH_PCREL,
++      R_LARCH_SOP_PUSH_ABSOLUTE,
++      R_LARCH_SOP_PUSH_PLT_PCREL,
++      R_LARCH_SOP_SUB,
++      R_LARCH_SOP_SL,
++      R_LARCH_SOP_SR,
++      R_LARCH_SOP_ADD,
++      R_LARCH_SOP_AND,
++      R_LARCH_SOP_IF_ELSE,
++      R_LARCH_SOP_POP_32_S_10_5,
++      R_LARCH_SOP_POP_32_U_10_12,
++      R_LARCH_SOP_POP_32_S_10_12,
++      R_LARCH_SOP_POP_32_S_10_16,
++      R_LARCH_SOP_POP_32_S_10_16_S2,
++      R_LARCH_SOP_POP_32_S_5_20,
++      R_LARCH_SOP_POP_32_S_0_5_10_16_S2,
++      R_LARCH_SOP_POP_32_S_0_10_10_16_S2,
++      R_LARCH_B26,
++      R_LARCH_ABS_HI20,
++      R_LARCH_ABS_LO12,
++      R_LARCH_ABS64_LO20,
++      R_LARCH_ABS64_HI12,
++      R_LARCH_PCALA_HI20,
++      R_LARCH_PCALA_LO12,
++      -1
++    }, (int[]){
++      -1
++    }
++  },
+   { "riscv32", 4, 0, EM_RISCV, GRUB_MODULE_VERIFY_SUPPORTS_REL | GRUB_MODULE_VERIFY_SUPPORTS_RELA, (int[]){
+       R_RISCV_32,
+       R_RISCV_64,
+@@ -176,52 +209,6 @@ struct grub_module_verifier_arch archs[] = {
+       -1
+     }
+   },
+-  { "loongarch64", 8, 0, EM_LOONGARCH64, GRUB_MODULE_VERIFY_SUPPORTS_REL | GRUB_MODULE_VERIFY_SUPPORTS_RELA, (int[]){
+-	R_LARCH_NONE,
+-	R_LARCH_32,
+-	R_LARCH_64,
+-	R_LARCH_RELATIVE,
+-	R_LARCH_COPY,
+-	R_LARCH_JUMP_SLOT,
+-	R_LARCH_TLS_DTPMOD32,
+-	R_LARCH_TLS_DTPMOD64,
+-	R_LARCH_TLS_DTPREL32,
+-	R_LARCH_TLS_DTPREL64,
+-	R_LARCH_TLS_TPREL32,
+-	R_LARCH_TLS_TPREL64,
+-	R_LARCH_IRELATIVE,
+-	R_LARCH_MARK_LA,
+-	R_LARCH_MARK_PCREL,
+-	R_LARCH_SOP_PUSH_PCREL,
+-	R_LARCH_SOP_PUSH_ABSOLUTE,
+-	R_LARCH_SOP_PUSH_DUP,
+-	R_LARCH_SOP_PUSH_GPREL,
+-	R_LARCH_SOP_PUSH_TLS_TPREL,
+-	R_LARCH_SOP_PUSH_TLS_GOT,
+-	R_LARCH_SOP_PUSH_TLS_GD,
+-	R_LARCH_SOP_PUSH_PLT_PCREL,
+-	R_LARCH_SOP_ASSERT,
+-	R_LARCH_SOP_NOT,
+-	R_LARCH_SOP_SUB,
+-	R_LARCH_SOP_SL,
+-	R_LARCH_SOP_SR,
+-	R_LARCH_SOP_ADD,
+-	R_LARCH_SOP_AND,
+-	R_LARCH_SOP_IF_ELSE,
+-	R_LARCH_SOP_POP_32_S_10_5,
+-	R_LARCH_SOP_POP_32_U_10_12,
+-	R_LARCH_SOP_POP_32_S_10_12,
+-	R_LARCH_SOP_POP_32_S_10_16,
+-	R_LARCH_SOP_POP_32_S_10_16_S2,
+-	R_LARCH_SOP_POP_32_S_5_20,
+-	R_LARCH_SOP_POP_32_S_0_5_10_16_S2,
+-	R_LARCH_SOP_POP_32_S_0_10_10_16_S2,
+-	R_LARCH_SOP_POP_32_U,
+-      -1
+-    }, (int[]){
+-      -1
+-    }
+-  },
+ };
+ 
+ struct platform_whitelist {
+diff --git a/util/mkimage.c b/util/mkimage.c
+index 9201002..8a239ec 100644
+--- a/util/mkimage.c
++++ b/util/mkimage.c
+@@ -668,7 +668,7 @@ static const struct grub_install_image_target_desc image_targets[] =
+       .section_align = GRUB_PE32_SECTION_ALIGNMENT,
+       .vaddr_offset = EFI64_HEADER_SIZE,
+       .pe_target = GRUB_PE32_MACHINE_LOONGARCH64,
+-      .elf_target = EM_LOONGARCH64,
++      .elf_target = EM_LOONGARCH,
+     },
+   };
+ 
+-- 
+2.20.1
+
