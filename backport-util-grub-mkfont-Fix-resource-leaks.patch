@@ -1,0 +1,45 @@
+From 78baa77c01f88662d980be38250344f7379b6655 Mon Sep 17 00:00:00 2001
+From: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+Date: Mon, 1 Aug 2022 16:31:02 +0800
+Subject: util/grub-mkfont: Fix resource leaks
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=78baa77c01f88662d980be38250344f7379b6655
+Conflict:NA
+
+Signed-off-by: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ util/grub-mkfont.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/util/grub-mkfont.c b/util/grub-mkfont.c
+index bb6982d..f63890c 100644
+--- a/util/grub-mkfont.c
++++ b/util/grub-mkfont.c
+@@ -656,6 +656,7 @@ add_font (struct grub_font_info *font_info, FT_Face face, int nocut)
+ 	      }
+ 	    }
+ 	}
++      free (gsub);
+     }
+ 
+   if (font_info->num_range)
+@@ -1279,11 +1280,15 @@ main (int argc, char *argv[])
+   if (font_verbosity > 1)
+     print_glyphs (&arguments.font_info);
+ 
++  free (arguments.font_info.glyphs_sorted);
++
+   {
+     size_t i;
+     for (i = 0; i < arguments.nfiles; i++)
+       free (arguments.files[i]);
+   }
+ 
++  free (arguments.files);
++
+   return 0;
+ }
+-- 
+2.19.1
+
