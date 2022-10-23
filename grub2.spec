@@ -14,7 +14,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.06
-Release:	12
+Release:	13
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -436,6 +436,12 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Sun Oct 23 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.06-13
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:backport some patches from upstream
+
 * Tue Aug 30 2022 wanglu <wanglu210@huawei.com> - 1:2.06-12
 - Type:bugfix
 - CVE:NA

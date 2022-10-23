@@ -1,0 +1,37 @@
+From 13fb5af10c835c32862e6c861fc655101e2917c7 Mon Sep 17 00:00:00 2001
+From: Glenn Washburn <development@efficientek.com>
+Date: Thu, 11 Aug 2022 12:48:42 -0500
+Subject: misc: Add cast in grub_strncasecmp() to drop sign when calling
+ grub_tolower()
+
+Note this cast was fixed in grub_strcasecmp() in commit ce41ab7aab
+(* grub-core/kern/misc.c (grub_strcmp): Use unsigned comparison as per
+common usage and preffered in several parts of code.), but this commit
+omitted fixing it in grub_strncasecmp().
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=13fb5af10c835c32862e6c861fc655101e2917c7
+Conflict:NA
+
+Signed-off-by: Glenn Washburn <development@efficientek.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ include/grub/misc.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/include/grub/misc.h b/include/grub/misc.h
+index cf84aec..6c89a9e 100644
+--- a/include/grub/misc.h
++++ b/include/grub/misc.h
+@@ -240,7 +240,8 @@ grub_strncasecmp (const char *s1, const char *s2, grub_size_t n)
+ 
+   while (*s1 && *s2 && --n)
+     {
+-      if (grub_tolower (*s1) != grub_tolower (*s2))
++      if (grub_tolower ((grub_uint8_t) *s1)
++	 != grub_tolower ((grub_uint8_t) *s2))
+ 	break;
+ 
+       s1++;
+-- 
+2.19.1
+
