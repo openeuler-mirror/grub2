@@ -1,0 +1,40 @@
+From f7f453e0bf1043d89587638ffd24b8c34631b8eb Mon Sep 17 00:00:00 2001
+From: Ross Philipson <ross.philipson@oracle.com>
+Date: Thu, 14 Jul 2022 09:41:28 -0400
+Subject: lib/relocator: Initialize local relocator subchunk struct to all
+ zeros
+
+The way the code is written the tofree variable would never be passed to
+the free_subchunk() function uninitialized. Coverity cannot determine
+this and flags the situation as "Using uninitialized value...". The fix
+is just to initialize the local struct.
+
+Fixes: CID 314016
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=f7f453e0bf1043d89587638ffd24b8c34631b8eb
+Conflict:NA
+
+Signed-off-by: Ross Philipson <ross.philipson@oracle.com>
+Reviewed-by: Darren Kenny <darren.kenny@oracle.com>
+Tested-by: Alec Brown <alec.r.brown@oracle.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/lib/relocator.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/grub-core/lib/relocator.c b/grub-core/lib/relocator.c
+index 68ef128..bfcc70d 100644
+--- a/grub-core/lib/relocator.c
++++ b/grub-core/lib/relocator.c
+@@ -989,7 +989,7 @@ malloc_in_range (struct grub_relocator *rel,
+ 	if (j != 0 && events[j - 1].pos != events[j].pos)
+ 	  {
+ 	    grub_addr_t alloc_start, alloc_end;
+-	    struct grub_relocator_subchunk tofree;
++	    struct grub_relocator_subchunk tofree = {0};
+ 	    struct grub_relocator_subchunk *curschu = &tofree;
+ 	    if (!oom)
+ 	      curschu = &res->subchunks[cural];
+-- 
+cgit v1.1
+
