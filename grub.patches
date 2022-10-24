@@ -265,3 +265,10 @@ Patch0265: backport-EFI-allocate-kernel-in-EFI_RUNTIME_SERVICES_CODE-ins.patch
 Patch0266: fix-compressed-kernel-verification-failed.patch
 Patch0267: backport-tests-Disable-blkid-cache-usage.patch
 Patch0268: backport-disk-efi-efidisk-Pass-buffers-with-higher-alignment.patch
+Patch0269: backport-lib-relocator-Initialize-local-relocator-subchunk-struct-to.patch
+Patch0270: backport-kern-fs-The-grub_fs_probe-should-dprint-errors.patch
+Patch0271: backport-fs-fat-Dont-error-when-mtime-is-0.patch
+Patch0272: backport-util-grub-mkfont-Fix-resource-leaks.patch
+Patch0273: backport-loader-arm64-linux-Remove-magic-number-header-field-.patch
+Patch0274: backport-misc-Add-cast-in-grub_strncasecmp-to-drop-sign-when-.patch
+Patch0275: backport-commands-efi-efifwsetup-Add-missing-grub_free-s.patch
