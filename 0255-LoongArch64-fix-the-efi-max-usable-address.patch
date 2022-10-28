@@ -1,0 +1,87 @@
+From a440395d131b29cad699e0325a62045eeec36a28 Mon Sep 17 00:00:00 2001
+From: yangqiming <yangqiming@loongson.cn>
+Date: Fri, 28 Oct 2022 06:37:53 -0400
+Subject: [PATCH] fix the efi max usable address
+
+
+diff --git a/grub-core/kern/efi/mm.c b/grub-core/kern/efi/mm.c
+index a8db638..11cba93 100644
+--- a/grub-core/kern/efi/mm.c
++++ b/grub-core/kern/efi/mm.c
+@@ -122,7 +122,11 @@ grub_efi_allocate_pages_max (grub_efi_physical_address_t max,
+   grub_efi_boot_services_t *b;
+   grub_efi_physical_address_t address = max;
+ 
++#ifdef GRUB_CPU_LOONGARCH64
++  if (max > grub_efi_max_usable_address())
++#else
+   if (max > GRUB_EFI_MAX_USABLE_ADDRESS)
++#endif
+     return 0;
+ 
+   b = grub_efi_system_table->boot_services;
+@@ -159,15 +163,21 @@ grub_efi_allocate_pages_real (grub_efi_physical_address_t address,
+   /* Limit the memory access to less than 4GB for 32-bit platforms.  */
+ #ifdef GRUB_CPU_LOONGARCH64
+   if (address > grub_efi_max_usable_address())
++    {
++      grub_error (GRUB_ERR_BAD_ARGUMENT,
++		  N_("invalid memory address (0x%llx > 0x%llx)"),
++		  address, grub_efi_max_usable_address());
++      return NULL;
++    }
+ #else
+   if (address > GRUB_EFI_MAX_USABLE_ADDRESS)
+-#endif
+     {
+       grub_error (GRUB_ERR_BAD_ARGUMENT,
+ 		  N_("invalid memory address (0x%llx > 0x%llx)"),
+ 		  address, GRUB_EFI_MAX_USABLE_ADDRESS);
+       return NULL;
+     }
++#endif
+ 
+   b = grub_efi_system_table->boot_services;
+   status = efi_call_4 (b->allocate_pages, alloctype, memtype, pages, &ret);
+@@ -755,7 +765,11 @@ grub_efi_get_ram_base(grub_addr_t *base_addr)
+         }
+     }
+ 
++#ifdef GRUB_CPU_LOONGARCH64
++  if (*base_addr == grub_efi_max_usable_address())
++#else
+   if (*base_addr == GRUB_EFI_MAX_USABLE_ADDRESS)
++#endif
+     grub_dprintf ("efi", "base_addr 0x%016lx is probably wrong.\n", *base_addr);
+ 
+   grub_free(memory_map);
+diff --git a/include/grub/loongarch64/efi/memory.h b/include/grub/loongarch64/efi/memory.h
+index b8556c7..540bbc6 100644
+--- a/include/grub/loongarch64/efi/memory.h
++++ b/include/grub/loongarch64/efi/memory.h
+@@ -1,14 +1,18 @@
+ #ifndef GRUB_MEMORY_CPU_HEADER
+ #include <grub/efi/memory.h>
+ 
+-#define GRUB_EFI_MAX_USABLE_ADDRESS 0x9800000fffffffffUL
+-#define GRUB_EFI_MAX_ALLOCATION_ADDRESS GRUB_EFI_MAX_USABLE_ADDRESS
+-
+ static inline grub_uint64_t grub_efi_max_usable_address(void)
+ {
+ 	grub_uint64_t addr;
++
+ 	asm volatile ("csrrd %0, 0x181" : "=r" (addr));
+-	return addr |= 0xffffffffffUL;
++
++	if (addr & 0x1)
++          addr |= 0xfffffffffffUL;
++        else
++          addr = 0xfffffffffffUL;
++
++        return addr;
+ }
+ 
+ #endif /* ! GRUB_MEMORY_CPU_HEADER */
+-- 
+2.27.0
+
