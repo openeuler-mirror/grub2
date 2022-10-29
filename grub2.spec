@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	26
+Release:	27
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -455,6 +455,12 @@ rm -r /boot/grub2.tmp/ || :
 %endif
 
 %changelog
+* Fri Oct 28 2022  yangqiming<yangqiming@loongson.cn> - 2.04-27
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:LoongArch64 fix the efi max usable address
+
 * Thu Sep 22 2022  yangqiming<yangqiming@loongson.cn> - 2.04-26
 - Type:bugfix
 - CVE:NA
