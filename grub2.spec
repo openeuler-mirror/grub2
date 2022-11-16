@@ -14,7 +14,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.06
-Release:	13
+Release:	14
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -31,6 +31,7 @@ Source10:	20-grub.install
 Source11:	bootstrap
 Source12:	bootstrap.conf
 Source13:	sbat.csv.in
+Source14:	config_for_secure
 
 %include %{SOURCE1}
 %include %{SOURCE2}
@@ -436,6 +437,12 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Fri Nov 4 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.06-14
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:add the source file of config_for_secure
+
 * Sun Oct 23 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.06-13
 - Type:bugfix
 - CVE:NA
