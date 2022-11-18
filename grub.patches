@@ -408,3 +408,17 @@ Patch0407: backport-net-http-Fix-OOB-write-for-split-http-headers.patch
 Patch0408: backport-net-http-Error-out-on-headers-with-LF-without-CR.patch
 Patch0409: backport-tests-Disable-blkid-cache-usage.patch
 Patch0410: backport-disk-efi-efidisk-Pass-buffers-with-higher-alignment.patch
+Patch0411: backport-video-readers-Add-artificial-limit-to-image-dimensio.patch
+Patch0412: backport-font-Reject-glyphs-exceeds-font-max_glyph_width-or-f.patch
+Patch0413: backport-font-Fix-size-overflow-in-grub_font_get_glyph_intern.patch
+Patch0414: backport-font-Fix-several-integer-overflows-in-grub_font_cons.patch
+Patch0415: backport-font-Remove-grub_font_dup_glyph.patch
+Patch0416: backport-font-Fix-integer-overflow-in-ensure_comb_space.patch
+Patch0417: backport-font-Fix-integer-overflow-in-BMP-index.patch
+Patch0418: backport-font-Fix-integer-underflow-in-binary-search-of-char-.patch
+Patch0419: backport-kern-efi-sb-Enforce-verification-of-font-files.patch
+Patch0420: backport-fbutil-Fix-integer-overflow.patch
+Patch0421: backport-font-Fix-an-integer-underflow-in-blit_comb.patch
+Patch0422: backport-font-Harden-grub_font_blit_glyph-and-grub_font_blit_.patch
+Patch0423: backport-font-Assign-null_font-to-glyphs-in-ascii_font_glyph.patch
+Patch0424: backport-normal-charset-Fix-an-integer-overflow-in-grub_unico.patch
