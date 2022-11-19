@@ -272,3 +272,17 @@ Patch0272: backport-util-grub-mkfont-Fix-resource-leaks.patch
 Patch0273: backport-loader-arm64-linux-Remove-magic-number-header-field-.patch
 Patch0274: backport-misc-Add-cast-in-grub_strncasecmp-to-drop-sign-when-.patch
 Patch0275: backport-commands-efi-efifwsetup-Add-missing-grub_free-s.patch
+Patch0276: backport-video-readers-Add-artificial-limit-to-image-dimensio.patch
+Patch0277: backport-font-Reject-glyphs-exceeds-font-max_glyph_width-or-f.patch
+Patch0278: backport-font-Fix-size-overflow-in-grub_font_get_glyph_intern.patch
+Patch0279: backport-font-Fix-several-integer-overflows-in-grub_font_cons.patch
+Patch0280: backport-font-Remove-grub_font_dup_glyph.patch
+Patch0281: backport-font-Fix-integer-overflow-in-ensure_comb_space.patch
+Patch0282: backport-font-Fix-integer-overflow-in-BMP-index.patch
+Patch0283: backport-font-Fix-integer-underflow-in-binary-search-of-char-.patch
+Patch0284: backport-kern-efi-sb-Enforce-verification-of-font-files.patch
+Patch0285: backport-fbutil-Fix-integer-overflow.patch
+Patch0286: backport-font-Fix-an-integer-underflow-in-blit_comb.patch
+Patch0287: backport-font-Harden-grub_font_blit_glyph-and-grub_font_blit_.patch
+Patch0288: backport-font-Assign-null_font-to-glyphs-in-ascii_font_glyph.patch
+Patch0289: backport-normal-charset-Fix-an-integer-overflow-in-grub_unico.patch
