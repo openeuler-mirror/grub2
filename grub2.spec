@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	26
+Release:	27
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -450,6 +450,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Fri Dec 9 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.04-27
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:fs/minix: Avoid mistakenly probing ext2 filesystems
+
 * Fri Nov 18 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.04-26
 - Type:CVE
 - CVE:CVE-2022-2601 CVE-2022-3775
