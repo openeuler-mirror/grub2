@@ -1,0 +1,80 @@
+From 25d64bb273c09d6346c0703b378f6e4f1d6d67c2 Mon Sep 17 00:00:00 2001
+From: Daniel Drake <drake@endlessm.com>
+Date: Fri, 12 Mar 2021 12:05:08 -0600
+Subject: [PATCH] fs/minix: Avoid mistakenly probing ext2 filesystems
+
+The ext2 (and ext3, ext4) filesystems write the number of free inodes to
+location 0x410.
+
+On a MINIX filesystem, that same location is used for the MINIX superblock
+magic number.
+
+If the number of free inodes on an ext2 filesystem is equal to any
+of the four MINIX superblock magic values plus any multiple of 65536,
+GRUB's MINIX filesystem code will probe it as a MINIX filesystem.
+
+In the case of an OS using ext2 as the root filesystem, since there will
+ordinarily be some amount of file creation and deletion on every bootup,
+it effectively means that this situation has a 1:16384 chance of being hit
+on every reboot.
+
+This will cause GRUB's filesystem probing code to mistakenly identify an
+ext2 filesystem as MINIX. This can be seen by e.g. "search --label"
+incorrectly indicating that no such ext2 partition with matching label
+exists, whereas in fact it does.
+
+After spotting the rough cause of the issue I was facing here, I borrowed
+much of the diagnosis/explanation from meierfra who found and investigated
+the same issue in util-linux in 2010:
+
+  https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/518582
+
+This was fixed in util-linux by having the MINIX code check for the
+ext2 magic. Do the same here.
+
+Signed-off-by: Daniel Drake <drake@endlessm.com>
+Reviewed-by: Derek Foreman <derek@endlessos.org>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/fs/minix.c | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/grub-core/fs/minix.c b/grub-core/fs/minix.c
+index d0d08363c..3cd18c85b 100644
+--- a/grub-core/fs/minix.c
++++ b/grub-core/fs/minix.c
+@@ -38,6 +38,8 @@ GRUB_MOD_LICENSE ("GPLv3+");
+ #define GRUB_MINIX_MAGIC_30	0x138F
+ #endif
+ 
++#define	EXT2_MAGIC		0xEF53
++
+ #define GRUB_MINIX_INODE_DIR_BLOCKS	7
+ #define GRUB_MINIX_LOG2_BSIZE	1
+ #define GRUB_MINIX_ROOT_INODE	1
+@@ -466,7 +468,21 @@ grub_minix_find_file (struct grub_minix_data *data, const char *path)
+ static struct grub_minix_data *
+ grub_minix_mount (grub_disk_t disk)
+ {
+-  struct grub_minix_data *data;
++  struct grub_minix_data *data = NULL;
++  grub_uint16_t ext2_marker;
++
++  grub_disk_read (disk, 2, 56, sizeof (ext2_marker), &ext2_marker);
++  if (grub_errno != GRUB_ERR_NONE)
++    goto fail;
++
++  /*
++   * The ext2 filesystems can sometimes be mistakenly identified as MINIX, e.g.
++   * due to the number of free ext2 inodes being written to the same location
++   * where the MINIX superblock magic is found. Avoid such situations by
++   * skipping any filesystems that have the ext2 superblock magic.
++   */
++  if (ext2_marker == grub_cpu_to_le16_compile_time (EXT2_MAGIC))
++    goto fail;
+ 
+   data = grub_malloc (sizeof (struct grub_minix_data));
+   if (!data)
+-- 
+2.27.0
+
