@@ -9,10 +9,12 @@
 %global _configure ../configure
 
 %if %{?_with_ccache: 1}%{?!_with_ccache: 0}
-%global cc_equals CC=/usr/%{_lib}/ccache/gcc
+%global ccpath /usr/%{_lib}/ccache/gcc
 %else
-%global cc_equals %{nil}
+%global ccpath %{__cc}
 %endif
+
+%global cc_equals "CC=%{ccpath} -fPIE"
 
 %global cflags_sed						\\\
 	sed							\\\
