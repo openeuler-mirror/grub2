@@ -14,7 +14,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.06
-Release:	16
+Release:	17
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -255,6 +255,8 @@ install -d -m 0755 %{buildroot}%{_unitdir}/system-update.target.wants
 install -m 0644 docs/grub-boot-indeterminate.service %{buildroot}%{_unitdir}
 ln -s ../grub-boot-indeterminate.service %{buildroot}%{_unitdir}/system-update.target.wants
 
+find %{buildroot}%{_unitdir}/ -type f -exec chmod a-x {} \;
+
 %global finddebugroot "%{_builddir}/%{?buildsubdir}/debug"
 
 %global dip RPM_BUILD_ROOT=%{finddebugroot} %{__debug_install_post}
@@ -437,6 +439,13 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Mon Dec 19 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.06-17
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:modify the permissions of the files which under /usr/lib/systemd/system directory
+       in grub2-tools to 644
+
 * Mon Dec 12 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.06-16
 - Type:bugfix
 - CVE:NA
