@@ -1,0 +1,3574 @@
+From 781cdb1573ffb77ed6d507d8daa7c6ff92256c57 Mon Sep 17 00:00:00 2001
+From: mengyingkun <mengyingkun@loongson.cn>
+Date: Thu, 12 Jan 2023 14:44:13 +0800
+Subject: [PATCH] port: Add LoongArch support
+
+This patch adds support for LoongArch. From now on, we can boot up
+grub as a UEFI application on LoongArch platform.
+
+Signed-off-by: yangqiming <yangqiming@loongson.cn>
+Signed-off-by: mengyingkun <mengyingkun@loongson.cn>
+---
+ Makefile.util.def                             |   1 +
+ bootstrap.conf                                |   4 +
+ configure.ac                                  |  24 +
+ gentpl.py                                     |   9 +-
+ grub-core/Makefile.am                         |   6 +
+ grub-core/Makefile.core.def                   |  23 +
+ grub-core/kern/dl.c                           |   9 +-
+ grub-core/kern/efi/mm.c                       |   3 +-
+ grub-core/kern/loongarch64/cache.S            |  26 +
+ grub-core/kern/loongarch64/dl.c               | 150 +++++
+ grub-core/kern/loongarch64/dl_helper.c        | 264 +++++++++
+ grub-core/kern/loongarch64/efi/init.c         |  73 +++
+ grub-core/kern/loongarch64/efi/startup.S      |  45 ++
+ grub-core/kern/loongarch64/init.c             |  47 ++
+ .../lib/gnulib-patches/fix-loongarch.patch    |  26 +
+ grub-core/lib/loongarch64/relocator.c         | 163 ++++++
+ grub-core/lib/loongarch64/relocator_asm.S     |  51 ++
+ grub-core/lib/loongarch64/setjmp.S            |  68 +++
+ grub-core/lib/setjmp.S                        |   2 +
+ grub-core/loader/efi/chainloader.c            |   2 +
+ grub-core/loader/loongarch64/linux-efi.c      | 144 +++++
+ grub-core/loader/loongarch64/linux-elf.c      | 529 ++++++++++++++++++
+ grub-core/loader/loongarch64/linux.c          | 398 +++++++++++++
+ include/grub/efi/api.h                        |   2 +-
+ include/grub/efi/efi.h                        |   6 +-
+ include/grub/efi/pe32.h                       |   4 +
+ include/grub/elf.h                            |  30 +
+ include/grub/fdt.h                            |   4 +-
+ include/grub/loongarch64/efi/loader.h         |  25 +
+ include/grub/loongarch64/efi/memory.h         |  15 +
+ include/grub/loongarch64/efi/time.h           |   0
+ include/grub/loongarch64/io.h                 |  62 ++
+ include/grub/loongarch64/linux.h              | 144 +++++
+ include/grub/loongarch64/loongarch64.h        |  30 +
+ include/grub/loongarch64/memory.h             |  59 ++
+ include/grub/loongarch64/reloc.h              | 113 ++++
+ include/grub/loongarch64/relocator.h          |  38 ++
+ include/grub/loongarch64/setjmp.h             |  27 +
+ include/grub/loongarch64/time.h               |  39 ++
+ include/grub/loongarch64/types.h              |  34 ++
+ include/grub/util/install.h                   |   1 +
+ util/grub-install-common.c                    |   1 +
+ util/grub-install.c                           |  16 +
+ util/grub-mkimagexx.c                         |  99 +++-
+ util/grub-module-verifier.c                   |  15 +
+ util/mkimage.c                                |  16 +
+ 46 files changed, 2833 insertions(+), 14 deletions(-)
+ create mode 100644 grub-core/kern/loongarch64/cache.S
+ create mode 100644 grub-core/kern/loongarch64/dl.c
+ create mode 100644 grub-core/kern/loongarch64/dl_helper.c
+ create mode 100644 grub-core/kern/loongarch64/efi/init.c
+ create mode 100644 grub-core/kern/loongarch64/efi/startup.S
+ create mode 100644 grub-core/kern/loongarch64/init.c
+ create mode 100644 grub-core/lib/gnulib-patches/fix-loongarch.patch
+ create mode 100644 grub-core/lib/loongarch64/relocator.c
+ create mode 100644 grub-core/lib/loongarch64/relocator_asm.S
+ create mode 100644 grub-core/lib/loongarch64/setjmp.S
+ create mode 100644 grub-core/loader/loongarch64/linux-efi.c
+ create mode 100644 grub-core/loader/loongarch64/linux-elf.c
+ create mode 100644 grub-core/loader/loongarch64/linux.c
+ create mode 100644 include/grub/loongarch64/efi/loader.h
+ create mode 100644 include/grub/loongarch64/efi/memory.h
+ create mode 100644 include/grub/loongarch64/efi/time.h
+ create mode 100644 include/grub/loongarch64/io.h
+ create mode 100644 include/grub/loongarch64/linux.h
+ create mode 100644 include/grub/loongarch64/loongarch64.h
+ create mode 100644 include/grub/loongarch64/memory.h
+ create mode 100644 include/grub/loongarch64/reloc.h
+ create mode 100644 include/grub/loongarch64/relocator.h
+ create mode 100644 include/grub/loongarch64/setjmp.h
+ create mode 100644 include/grub/loongarch64/time.h
+ create mode 100644 include/grub/loongarch64/types.h
+
+diff --git a/Makefile.util.def b/Makefile.util.def
+index b7a6311..932a8c2 100644
+--- a/Makefile.util.def
++++ b/Makefile.util.def
+@@ -169,6 +169,7 @@ library = {
+   common = grub-core/kern/ia64/dl_helper.c;
+   common = grub-core/kern/arm/dl_helper.c;
+   common = grub-core/kern/arm64/dl_helper.c;
++  common = grub-core/kern/loongarch64/dl_helper.c;
+   common = grub-core/lib/minilzo/minilzo.c;
+   common = grub-core/lib/xzembed/xz_dec_bcj.c;
+   common = grub-core/lib/xzembed/xz_dec_lzma2.c;
+diff --git a/bootstrap.conf b/bootstrap.conf
+index 03f1093..854d3c0 100644
+--- a/bootstrap.conf
++++ b/bootstrap.conf
+@@ -85,6 +85,10 @@ cp -a INSTALL INSTALL.grub
+ 
+ bootstrap_post_import_hook () {
+   set -e
++  for patchname in fix-loongarch; do
++    patch -d gnulib -p1 \
++      < "grub-core/lib/gnulib-patches/$patchname.patch"
++  done
+   for patchname in \
+       0001-Support-POTFILES-shell \
+       0002-Handle-gettext_printf-shell-function \
+diff --git a/configure.ac b/configure.ac
+index 0a9522a..d03e089 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -149,6 +149,10 @@ case "$target_cpu" in
+   riscv64*)
+ 		target_cpu=riscv64
+ 		;;
++  loongarch64)
++		target_cpu=loongarch64
++		machine_CPPFLAGS="$machine_CPPFLAGS -DGRUB_CPU_LOONGARCH64=1"
++		;;
+ esac
+ 
+ # Specify the platform (such as firmware).
+@@ -167,6 +171,7 @@ if test "x$with_platform" = x; then
+     powerpc64-*) platform=ieee1275 ;;
+     powerpc64le-*) platform=ieee1275 ;;
+     sparc64-*) platform=ieee1275 ;;
++    loongarch64-*) platform=efi ;;
+     mipsel-*) platform=loongson ;;
+     mips-*) platform=arc ;;
+     ia64-*) platform=efi ;;
+@@ -218,6 +223,7 @@ case "$target_cpu"-"$platform" in
+   mipsel-yeeloong) platform=loongson ;;
+   mipsel-fuloong) platform=loongson ;;
+   mipsel-loongson) ;;
++  loongarch64-efi) ;;
+   arm-uboot) ;;
+   arm-coreboot) ;;
+   arm-efi) ;;
+@@ -276,6 +282,7 @@ case "$platform" in
+   pc)		machine_CPPFLAGS="$machine_CPPFLAGS -DGRUB_MACHINE_PCBIOS=1" ;;
+   emu)		machine_CPPFLAGS="$machine_CPPFLAGS -DGRUB_MACHINE_EMU=1" ;;
+   loongson)	machine_CPPFLAGS="$machine_CPPFLAGS -DGRUB_MACHINE_MIPS_LOONGSON=1" ;;
++  loongson64)	machine_CPPFLAGS="$machine_CPPFLAGS -DGRUB_MACHINE_LOONARCH64=1" ;;
+   qemu_mips)	machine_CPPFLAGS="$machine_CPPFLAGS -DGRUB_MACHINE_MIPS_QEMU_MIPS=1" ;;
+   arc)	machine_CPPFLAGS="$machine_CPPFLAGS -DGRUB_MACHINE_ARC=1" ;;
+ esac
+@@ -890,6 +897,21 @@ if ( test "x$target_cpu" = xi386 || test "x$target_cpu" = xx86_64 ) && test "x$p
+   TARGET_CFLAGS="$TARGET_CFLAGS -mno-mmx -mno-sse -mno-sse2 -mno-sse3 -mno-3dnow"
+ fi
+ 
++if test "x$target_cpu" = xloongarch64; then
++  AC_CACHE_CHECK([whether _mno_explicit_relocs works], [grub_cv_cc_mno_explicit_relocs], [
++    CFLAGS="$TARGET_CFLAGS -mno-explicit-relocs -Werror"
++    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
++       [grub_cv_cc_mno_explicit_relocs=yes],
++       [grub_cv_cc_mno_explicit_relocs=no])
++  ])
++  if test "x$grub_cv_cc_mno_explicit_relocs" = xyes; then
++    TARGET_CFLAGS="$TARGET_CFLAGS -mno-explicit-relocs -fno-plt"
++    TARGET_CCASFLAGS="$TARGET_CCASFLAGS -mno-explicit-relocs -fno-plt"
++  fi
++  TARGET_CFLAGS="$TARGET_CFLAGS -Wa,-mla-global-with-abs"
++  TARGET_CCASFLAGS="$TARGET_CCASFLAGS -Wa,-mla-global-with-abs"
++fi
++
+ # Should grub utils get the host CFLAGS, or the target CFLAGS?
+ AC_ARG_WITH([utils],
+             AS_HELP_STRING([--with-utils=host|target|build],
+@@ -2166,6 +2188,8 @@ AM_CONDITIONAL([COND_mips_arc], [test "(" x$target_cpu = xmips -o x$target_cpu =
+ AM_CONDITIONAL([COND_sparc64_ieee1275], [test x$target_cpu = xsparc64 -a x$platform = xieee1275])
+ AM_CONDITIONAL([COND_sparc64_emu], [test x$target_cpu = xsparc64 -a x$platform = xemu])
+ AM_CONDITIONAL([COND_powerpc_ieee1275], [test x$target_cpu = xpowerpc -a x$platform = xieee1275])
++AM_CONDITIONAL([COND_loongarch64_efi], [test x$target_cpu = xloongarch64 -a x$platform = xefi])
++AM_CONDITIONAL([COND_loongarch64], [test x$target_cpu = xloongarch64])
+ AM_CONDITIONAL([COND_mips], [test x$target_cpu = xmips -o x$target_cpu = xmipsel])
+ AM_CONDITIONAL([COND_mipsel], [test x$target_cpu = xmipsel])
+ AM_CONDITIONAL([COND_mipseb], [test x$target_cpu = xmips])
+diff --git a/gentpl.py b/gentpl.py
+index 59f62ef..f03aff8 100644
+--- a/gentpl.py
++++ b/gentpl.py
+@@ -32,7 +32,8 @@ GRUB_PLATFORMS = [ "emu", "i386_pc", "i386_efi", "i386_qemu", "i386_coreboot",
+                    "mips_loongson", "sparc64_ieee1275",
+                    "powerpc_ieee1275", "mips_arc", "ia64_efi",
+                    "mips_qemu_mips", "arm_uboot", "arm_efi", "arm64_efi",
+-                   "arm_coreboot", "riscv32_efi", "riscv64_efi" ]
++                   "arm_coreboot", "riscv32_efi", "riscv64_efi",
++                   "loongarch64_efi" ]
+ 
+ GROUPS = {}
+ 
+@@ -49,11 +50,12 @@ GROUPS["arm"]      = [ "arm_uboot", "arm_efi", "arm_coreboot" ]
+ GROUPS["arm64"]    = [ "arm64_efi" ]
+ GROUPS["riscv32"]  = [ "riscv32_efi" ]
+ GROUPS["riscv64"]  = [ "riscv64_efi" ]
++GROUPS["loongarch64"]   = [ "loongarch64_efi" ]
+ 
+ # Groups based on firmware
+ GROUPS["pc"] = [ "i386_pc" ]
+ GROUPS["efi"]  = [ "i386_efi", "x86_64_efi", "ia64_efi", "arm_efi", "arm64_efi",
+-		   "riscv32_efi", "riscv64_efi" ]
++                   "riscv32_efi", "riscv64_efi", "loongarch64_efi" ]
+ GROUPS["ieee1275"]   = [ "i386_ieee1275", "sparc64_ieee1275", "powerpc_ieee1275" ]
+ GROUPS["uboot"] = [ "arm_uboot" ]
+ GROUPS["xen"]  = [ "i386_xen", "x86_64_xen" ]
+@@ -80,7 +82,8 @@ GROUPS["terminfomodule"]   = GRUB_PLATFORMS[:];
+ for i in GROUPS["terminfoinkernel"]: GROUPS["terminfomodule"].remove(i)
+ 
+ # Flattened Device Trees (FDT)
+-GROUPS["fdt"] = [ "arm64_efi", "arm_uboot", "arm_efi", "riscv32_efi", "riscv64_efi" ]
++GROUPS["fdt"] = [ "arm64_efi", "arm_uboot", "arm_efi", "riscv32_efi",
++                  "riscv64_efi", "loongarch64_efi" ]
+ 
+ # Needs software helpers for division
+ # Must match GRUB_DIVISION_IN_SOFTWARE in misc.h
+diff --git a/grub-core/Makefile.am b/grub-core/Makefile.am
+index dd49939..6582f16 100644
+--- a/grub-core/Makefile.am
++++ b/grub-core/Makefile.am
+@@ -240,6 +240,12 @@ KERNEL_HEADER_FILES += $(top_builddir)/include/grub/machine/memory.h
+ KERNEL_HEADER_FILES += $(top_builddir)/include/grub/machine/kernel.h
+ endif
+ 
++if COND_loongarch64_efi
++KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/efi/efi.h
++KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/efi/disk.h
++KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/acpi.h
++endif
++
+ if COND_powerpc_ieee1275
+ KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/ieee1275/ieee1275.h
+ KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/terminfo.h
+diff --git a/grub-core/Makefile.core.def b/grub-core/Makefile.core.def
+index 6b00eb5..016d345 100644
+--- a/grub-core/Makefile.core.def
++++ b/grub-core/Makefile.core.def
+@@ -103,6 +103,9 @@ kernel = {
+   arm_coreboot_ldflags       = '-Wl,-r,-d';
+   arm_coreboot_stripflags    = '--strip-unneeded -K start -R .note -R .comment -R .note.gnu.gold-version';
+ 
++  loongarch64_efi_ldflags    = '-Wl,-r,-d';
++  loongarch64_efi_stripflags = '--strip-unneeded -K start -R .note -R .comment -R .note.gnu.gold-version -R .eh_frame';
++
+   i386_pc_startup = kern/i386/pc/startup.S;
+   i386_efi_startup = kern/i386/efi/startup.S;
+   x86_64_efi_startup = kern/x86_64/efi/startup.S;
+@@ -122,6 +125,7 @@ kernel = {
+   arm64_efi_startup = kern/arm64/efi/startup.S;
+   riscv32_efi_startup = kern/riscv/efi/startup.S;
+   riscv64_efi_startup = kern/riscv/efi/startup.S;
++  loongarch64_efi_startup = kern/loongarch64/efi/startup.S;
+ 
+   common = kern/buffer.c;
+   common = kern/command.c;
+@@ -270,6 +274,9 @@ kernel = {
+   riscv64_efi = kern/riscv/efi/init.c;
+   riscv64_efi = kern/efi/fdt.c;
+ 
++  loongarch64_efi = kern/loongarch64/efi/init.c;
++  loongarch64_efi = kern/efi/fdt.c;
++
+   i386_pc = kern/i386/pc/init.c;
+   i386_pc = kern/i386/pc/mmap.c;
+   i386_pc = term/i386/pc/console.c;
+@@ -351,6 +358,12 @@ kernel = {
+   riscv64 = kern/riscv/cache_flush.S;
+   riscv64 = kern/riscv/dl.c;
+ 
++  loongarch64 = kern/loongarch64/init.c;
++  loongarch64 = kern/loongarch64/dl.c;
++  loongarch64 = kern/loongarch64/dl_helper.c;
++  loongarch64 = kern/loongarch64/cache.S;
++  loongarch64 = kern/generic/rtc_get_time_ms.c;
++
+   fdt = lib/fdt.c;
+ 
+   emu = disk/host.c;
+@@ -864,6 +877,7 @@ module = {
+   enable = arm_coreboot;
+   enable = riscv32_efi;
+   enable = riscv64_efi;
++  enable = loongarch64_efi;
+ };
+ 
+ module = {
+@@ -941,6 +955,7 @@ module = {
+   i386_multiboot = commands/acpihalt.c;
+   i386_efi = commands/acpihalt.c;
+   x86_64_efi = commands/acpihalt.c;
++  loongarch64_efi = commands/acpihalt.c;
+   i386_multiboot = lib/i386/halt.c;
+   i386_coreboot = lib/i386/halt.c;
+   i386_qemu = lib/i386/halt.c;
+@@ -1715,6 +1730,8 @@ module = {
+   x86_64_xen = lib/x86_64/xen/relocator.S;
+   xen = lib/i386/relocator_common_c.c;
+   x86_64_efi = lib/x86_64/efi/relocator.c;
++  loongarch64 = lib/loongarch64/relocator_asm.S;
++  loongarch64 = lib/loongarch64/relocator.c;
+ 
+   extra_dist = lib/i386/relocator_common.S;
+   extra_dist = kern/powerpc/cache_flush.S;
+@@ -1724,6 +1741,7 @@ module = {
+   enable = x86;
+   enable = i386_xen_pvh;
+   enable = xen;
++  enable = loongarch64;
+ };
+ 
+ module = {
+@@ -1756,6 +1774,7 @@ module = {
+   extra_dist = lib/arm/setjmp.S;
+   extra_dist = lib/arm64/setjmp.S;
+   extra_dist = lib/riscv/setjmp.S;
++  extra_dist = lib/loongarch64/setjmp.S;
+ };
+ 
+ module = {
+@@ -1854,6 +1873,9 @@ module = {
+   arm64 = loader/arm64/linux.c;
+   riscv32 = loader/riscv/linux.c;
+   riscv64 = loader/riscv/linux.c;
++  loongarch64 = loader/loongarch64/linux.c;
++  loongarch64 = loader/loongarch64/linux-elf.c;
++  loongarch64 = loader/loongarch64/linux-efi.c;
+   emu = loader/emu/linux.c;
+ 
+   common = loader/linux.c;
+@@ -1953,6 +1975,7 @@ module = {
+   enable = riscv32_efi;
+   enable = riscv64_efi;
+   enable = mips;
++  enable = loongarch64_efi;
+ };
+ 
+ module = {
+diff --git a/grub-core/kern/dl.c b/grub-core/kern/dl.c
+index f304494..8c82ea1 100644
+--- a/grub-core/kern/dl.c
++++ b/grub-core/kern/dl.c
+@@ -278,7 +278,8 @@ grub_dl_load_segments (grub_dl_t mod, const Elf_Ehdr *e)
+   unsigned i;
+   const Elf_Shdr *s;
+   grub_size_t tsize = 0, talign = 1;
+-#if !defined (__i386__) && !defined (__x86_64__) && !defined(__riscv)
++#if !defined (__i386__) && !defined (__x86_64__) && !defined(__riscv) && \
++  !defined(__loongarch__)
+   grub_size_t tramp;
+   grub_size_t got;
+   grub_err_t err;
+@@ -294,7 +295,8 @@ grub_dl_load_segments (grub_dl_t mod, const Elf_Ehdr *e)
+ 	talign = s->sh_addralign;
+     }
+ 
+-#if !defined (__i386__) && !defined (__x86_64__) && !defined(__riscv)
++#if !defined (__i386__) && !defined (__x86_64__) && !defined(__riscv) && \
++  !defined(__loongarch__)
+   err = grub_arch_dl_get_tramp_got_size (e, &tramp, &got);
+   if (err)
+     return err;
+@@ -357,7 +359,8 @@ grub_dl_load_segments (grub_dl_t mod, const Elf_Ehdr *e)
+ 	  mod->segment = seg;
+ 	}
+     }
+-#if !defined (__i386__) && !defined (__x86_64__) && !defined(__riscv)
++#if !defined (__i386__) && !defined (__x86_64__) && !defined(__riscv) && \
++  !defined(__loongarch__)
+   ptr = (char *) ALIGN_UP ((grub_addr_t) ptr, GRUB_ARCH_DL_TRAMP_ALIGN);
+   mod->tramp = ptr;
+   mod->trampptr = ptr;
+diff --git a/grub-core/kern/efi/mm.c b/grub-core/kern/efi/mm.c
+index 8553fcd..9d723a9 100644
+--- a/grub-core/kern/efi/mm.c
++++ b/grub-core/kern/efi/mm.c
+@@ -699,7 +699,8 @@ grub_efi_mm_init (void)
+ 		       2 * BYTES_TO_PAGES (MEMORY_MAP_SIZE));
+ }
+ 
+-#if defined (__aarch64__) || defined (__arm__) || defined (__riscv)
++#if defined (__aarch64__) || defined (__arm__) || defined (__riscv) \
++  || defined (__loongarch__)
+ grub_err_t
+ grub_efi_get_ram_base(grub_addr_t *base_addr)
+ {
+diff --git a/grub-core/kern/loongarch64/cache.S b/grub-core/kern/loongarch64/cache.S
+new file mode 100644
+index 0000000..d291c67
+--- /dev/null
++++ b/grub-core/kern/loongarch64/cache.S
+@@ -0,0 +1,26 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2009,2017  Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <grub/symbol.h>
++
++FUNCTION (grub_arch_sync_caches)
++	jr	$ra
++
++FUNCTION (grub_arch_sync_dma_caches)
++	jr	$ra
++
+diff --git a/grub-core/kern/loongarch64/dl.c b/grub-core/kern/loongarch64/dl.c
+new file mode 100644
+index 0000000..47196a2
+--- /dev/null
++++ b/grub-core/kern/loongarch64/dl.c
+@@ -0,0 +1,150 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2022 Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <grub/dl.h>
++#include <grub/elf.h>
++#include <grub/misc.h>
++#include <grub/err.h>
++#include <grub/types.h>
++#include <grub/mm.h>
++#include <grub/i18n.h>
++#include <grub/cpu/reloc.h>
++
++/* Check if EHDR is a valid ELF header.  */
++grub_err_t
++grub_arch_dl_check_header (void *ehdr)
++{
++  Elf_Ehdr *e = ehdr;
++
++  /* Check the magic numbers.  */
++  if (e->e_ident[EI_CLASS] != ELFCLASS64
++      || e->e_ident[EI_DATA] != ELFDATA2LSB || e->e_machine != EM_LOONGARCH)
++    return grub_error (GRUB_ERR_BAD_OS, N_("invalid arch-dependent ELF magic"));
++
++  return GRUB_ERR_NONE;
++}
++
++#pragma GCC diagnostic ignored "-Wcast-align"
++
++/*
++ * Unified function for both REL and RELA.
++ */
++grub_err_t
++grub_arch_dl_relocate_symbols (grub_dl_t mod, void *ehdr,
++			       Elf_Shdr *s, grub_dl_segment_t seg)
++{
++  Elf_Rel *rel, *max;
++  struct grub_loongarch64_stack stack;
++  grub_loongarch64_stack_init (&stack);
++
++  for (rel = (Elf_Rel *) ((char *) ehdr + s->sh_offset),
++	 max = (Elf_Rel *) ((char *) rel + s->sh_size);
++       rel < max;
++       rel = (Elf_Rel *) ((char *) rel + s->sh_entsize))
++    {
++      Elf_Sym *sym;
++      void *place;
++      grub_uint64_t sym_addr;
++
++      if (rel->r_offset >= seg->size)
++	return grub_error (GRUB_ERR_BAD_MODULE,
++			   "reloc offset is outside the segment");
++
++      sym = (Elf_Sym *) ((char*)mod->symtab
++			 + mod->symsize * ELF_R_SYM (rel->r_info));
++
++      sym_addr = sym->st_value;
++      if (s->sh_type == SHT_RELA)
++	sym_addr += ((Elf_Rela *) rel)->r_addend;
++
++      place = (void *) ((grub_addr_t)seg->addr + rel->r_offset);
++
++      switch (ELF_R_TYPE (rel->r_info))
++	{
++	case R_LARCH_64:
++	  {
++	    grub_uint64_t *abs_place = place;
++
++	    grub_dprintf ("dl", "reloc_abs64 %p => 0x%016llx, %p\n",
++			  place, (unsigned long long) sym_addr, abs_place);
++
++	    *abs_place += (grub_uint64_t) sym_addr;
++	  }
++	  break;
++	case R_LARCH_MARK_LA:
++	  break;
++	case R_LARCH_SOP_PUSH_PCREL:
++	case R_LARCH_SOP_PUSH_PLT_PCREL:
++	  grub_loongarch64_sop_push (&stack, sym_addr - (grub_uint64_t)place);
++	  break;
++	case R_LARCH_B26:
++	  {
++	    grub_uint32_t *abs_place = place;
++	    grub_ssize_t off = sym_addr - (grub_addr_t) place;
++
++	    grub_loongarch64_b26 (abs_place, off);
++	  }
++	  break;
++	case R_LARCH_ABS_HI20:
++	  {
++	    grub_uint32_t *abs_place = place;
++	    grub_loongarch64_xxx_hi20 (abs_place, sym_addr);
++	  }
++	  break;
++	case R_LARCH_ABS64_LO20:
++	  {
++	    grub_uint32_t *abs_place = place;
++	    grub_loongarch64_xxx64_lo20 (abs_place, sym_addr);
++	  }
++	  break;
++	case R_LARCH_ABS64_HI12:
++	  {
++	    grub_uint32_t *abs_place = place;
++	    grub_loongarch64_xxx64_hi12 (abs_place, sym_addr);
++	  }
++	  break;
++	case R_LARCH_PCALA_HI20:
++	  {
++	    grub_uint32_t *abs_place = place;
++	    grub_int32_t off = (((sym_addr + 0x800) & ~0xfffULL) - ((grub_addr_t)place & ~0xfffULL));
++
++	    grub_loongarch64_xxx_hi20 (abs_place, off);
++	  }
++	  break;
++	case R_LARCH_ABS_LO12:
++	case R_LARCH_PCALA_LO12:
++	  {
++	    grub_uint32_t *abs_place = place;
++	    grub_loongarch64_xxx_lo12 (abs_place, sym_addr);
++	  }
++	  break;
++	GRUB_LOONGARCH64_RELOCATION (&stack, place, sym_addr)
++	default:
++	  {
++	    char rel_info[17]; /* log16(2^64) = 16, plus NUL.  */
++
++	    grub_snprintf (rel_info, sizeof (rel_info) - 1, "%" PRIxGRUB_UINT64_T,
++			   (grub_uint64_t) ELF_R_TYPE (rel->r_info));
++	    return grub_error (GRUB_ERR_NOT_IMPLEMENTED_YET,
++			       N_("relocation 0x%s is not implemented yet"), rel_info);
++	  }
++	  break;
++	}
++    }
++  return GRUB_ERR_NONE;
++}
+diff --git a/grub-core/kern/loongarch64/dl_helper.c b/grub-core/kern/loongarch64/dl_helper.c
+new file mode 100644
+index 0000000..68275fe
+--- /dev/null
++++ b/grub-core/kern/loongarch64/dl_helper.c
+@@ -0,0 +1,264 @@
++/* dl_helper.c - relocation helper functions for modules and grub-mkimage */
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2022 Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <grub/dl.h>
++#include <grub/elf.h>
++#include <grub/misc.h>
++#include <grub/err.h>
++#include <grub/mm.h>
++#include <grub/i18n.h>
++#include <grub/loongarch64/reloc.h>
++
++static void grub_loongarch64_stack_push (grub_loongarch64_stack_t stack, grub_uint64_t x);
++static grub_uint64_t grub_loongarch64_stack_pop (grub_loongarch64_stack_t stack);
++
++void
++grub_loongarch64_stack_init (grub_loongarch64_stack_t stack)
++{
++  stack->top = -1;
++  stack->count = LOONGARCH64_STACK_MAX;
++}
++
++static void
++grub_loongarch64_stack_push (grub_loongarch64_stack_t stack, grub_uint64_t x)
++{
++  if (stack->top == stack->count)
++    return;
++  stack->data[++stack->top] = x;
++}
++
++static grub_uint64_t
++grub_loongarch64_stack_pop (grub_loongarch64_stack_t stack)
++{
++  if (stack->top == -1)
++    return -1;
++  return stack->data[stack->top--];
++}
++
++void
++grub_loongarch64_sop_push (grub_loongarch64_stack_t stack, grub_int64_t offset)
++{
++  grub_loongarch64_stack_push (stack, offset);
++}
++
++/* opr2 = pop (), opr1 = pop (), push (opr1 - opr2) */
++void
++grub_loongarch64_sop_sub (grub_loongarch64_stack_t stack)
++{
++  grub_uint64_t a, b;
++  b = grub_loongarch64_stack_pop (stack);
++  a = grub_loongarch64_stack_pop (stack);
++  grub_loongarch64_stack_push (stack, a - b);
++}
++
++/* opr2 = pop (), opr1 = pop (), push (opr1 << opr2) */
++void
++grub_loongarch64_sop_sl (grub_loongarch64_stack_t stack)
++{
++  grub_uint64_t a, b;
++  b = grub_loongarch64_stack_pop (stack);
++  a = grub_loongarch64_stack_pop (stack);
++  grub_loongarch64_stack_push (stack, a << b);
++}
++
++/* opr2 = pop (), opr1 = pop (), push (opr1 >> opr2) */
++void
++grub_loongarch64_sop_sr (grub_loongarch64_stack_t stack)
++{
++  grub_uint64_t a, b;
++  b = grub_loongarch64_stack_pop (stack);
++  a = grub_loongarch64_stack_pop (stack);
++  grub_loongarch64_stack_push (stack, a >> b);
++}
++
++/* opr2 = pop (), opr1 = pop (), push (opr1 + opr2) */
++void
++grub_loongarch64_sop_add (grub_loongarch64_stack_t stack)
++{
++  grub_uint64_t a, b;
++  b = grub_loongarch64_stack_pop (stack);
++  a = grub_loongarch64_stack_pop (stack);
++  grub_loongarch64_stack_push (stack, a + b);
++}
++
++/* opr2 = pop (), opr1 = pop (), push (opr1 & opr2) */
++void
++grub_loongarch64_sop_and (grub_loongarch64_stack_t stack)
++{
++  grub_uint64_t a, b;
++  b = grub_loongarch64_stack_pop (stack);
++  a = grub_loongarch64_stack_pop (stack);
++  grub_loongarch64_stack_push (stack, a & b);
++}
++
++/* opr3 = pop (), opr2 = pop (), opr1 = pop (), push (opr1 ? opr2 : opr3) */
++void
++grub_loongarch64_sop_if_else (grub_loongarch64_stack_t stack)
++{
++  grub_uint64_t a, b, c;
++  c = grub_loongarch64_stack_pop (stack);
++  b = grub_loongarch64_stack_pop (stack);
++  a = grub_loongarch64_stack_pop (stack);
++
++  if (a) {
++      grub_loongarch64_stack_push (stack, b);
++  } else {
++      grub_loongarch64_stack_push (stack, c);
++  }
++}
++
++/* opr1 = pop (), (*(uint32_t *) PC) [14 ... 10] = opr1 [4 ... 0] */
++void
++grub_loongarch64_sop_32_s_10_5 (grub_loongarch64_stack_t stack,
++				grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++  *place |= ((a & 0x1f) << 10);
++}
++
++/* opr1 = pop (), (*(uint32_t *) PC) [21 ... 10] = opr1 [11 ... 0] */
++void
++grub_loongarch64_sop_32_u_10_12 (grub_loongarch64_stack_t stack,
++				 grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++  *place = *place | ((a & 0xfff) << 10);
++}
++
++/* opr1 = pop (), (*(uint32_t *) PC) [21 ... 10] = opr1 [11 ... 0] */
++void
++grub_loongarch64_sop_32_s_10_12 (grub_loongarch64_stack_t stack,
++				 grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++  *place = (*place) | ((a & 0xfff) << 10);
++}
++
++/* opr1 = pop (), (*(uint32_t *) PC) [25 ... 10] = opr1 [15 ... 0] */
++void
++grub_loongarch64_sop_32_s_10_16 (grub_loongarch64_stack_t stack,
++				 grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++  *place = (*place) | ((a & 0xffff) << 10);
++}
++
++/* opr1 = pop (), (*(uint32_t *) PC) [25 ... 10] = opr1 [17 ... 2] */
++void
++grub_loongarch64_sop_32_s_10_16_s2 (grub_loongarch64_stack_t stack,
++				    grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++  *place = (*place) | (((a >> 2) & 0xffff) << 10);
++}
++
++/* opr1 = pop (), (*(uint32_t *) PC) [24 ... 5] = opr1 [19 ... 0] */
++void
++grub_loongarch64_sop_32_s_5_20 (grub_loongarch64_stack_t stack, grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++  *place = (*place) | ((a & 0xfffff)<<5);
++}
++
++/* opr1 = pop (),
++   (*(uint32_t *) PC) [4 ... 0] = opr1 [22 ... 18]
++   (*(uint32_t *) PC) [25 ...10] = opr1 [17 ... 2]
++ */
++void
++grub_loongarch64_sop_32_s_0_5_10_16_s2 (grub_loongarch64_stack_t stack,
++					grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++
++  *place =(*place) | (((a >> 2) & 0xffff) << 10);
++  *place =(*place) | ((a >> 18) & 0x1f);
++}
++
++/*
++   opr1 = pop ()
++   (*(uint32_t *) PC) [9 ... 0] = opr1 [27 ... 18],
++   (*(uint32_t *) PC) [25 ... 10] = opr1 [17 ... 2]
++*/
++void
++grub_loongarch64_sop_32_s_0_10_10_16_s2 (grub_loongarch64_stack_t stack,
++					 grub_uint64_t *place)
++{
++  grub_uint64_t a = grub_loongarch64_stack_pop (stack);
++  *place =(*place) | (((a >> 2) & 0xffff) << 10);
++  *place =(*place) | ((a >> 18) & 0x3ff);
++}
++
++void grub_loongarch64_b26 (grub_uint32_t *place, grub_int64_t offset)
++{
++  grub_uint32_t val;
++  const grub_uint32_t insmask = grub_cpu_to_le32_compile_time (0xfc000000);
++
++  grub_dprintf ("dl", "  reloc_xxxx64 %p %c= 0x%llx\n",
++		place, offset > 0 ? '+' : '-',
++		offset < 0 ? (long long) -(unsigned long long) offset : offset);
++
++  val = ((offset >> 18) & 0x3ff) | (((offset >> 2) & 0xffff) << 10);
++
++  *place &= insmask;
++  *place |= grub_cpu_to_le32 (val) & ~insmask;
++}
++
++void grub_loongarch64_xxx_hi20 (grub_uint32_t *place, grub_int64_t offset)
++{
++  const grub_uint32_t insmask = grub_cpu_to_le32_compile_time (0xfe00001f);
++  grub_uint32_t val;
++
++  offset >>= 12;
++  val = ((offset & 0xfffff) << 5);
++
++  *place &= insmask;
++  *place |= grub_cpu_to_le32 (val) & ~insmask;
++}
++
++void grub_loongarch64_xxx_lo12 (grub_uint32_t *place, grub_int64_t offset)
++{
++  const grub_uint32_t insmask = grub_cpu_to_le32_compile_time (0xffc003ff);
++
++  *place &= insmask;
++  *place |= grub_cpu_to_le32 (offset << 10) & ~insmask;
++}
++
++void grub_loongarch64_xxx64_hi12 (grub_uint32_t *place, grub_int64_t offset)
++{
++  const grub_uint32_t insmask = grub_cpu_to_le32_compile_time (0xffc003ff);
++  grub_uint32_t val;
++
++  offset >>= 52;
++  val = ((offset & 0xfff) << 10);
++
++  *place &= insmask;
++  *place |= grub_cpu_to_le32 (val) & ~insmask;
++}
++
++void grub_loongarch64_xxx64_lo20 (grub_uint32_t *place, grub_int64_t offset)
++{
++  const grub_uint32_t insmask = grub_cpu_to_le32_compile_time (0xfe00001f);
++  grub_uint32_t val;
++
++  offset >>= 32;
++  val = ((offset & 0xfffff) << 5);
++
++  *place &= insmask;
++  *place |= grub_cpu_to_le32 (val) & ~insmask;
++}
+diff --git a/grub-core/kern/loongarch64/efi/init.c b/grub-core/kern/loongarch64/efi/init.c
+new file mode 100644
+index 0000000..7f7c866
+--- /dev/null
++++ b/grub-core/kern/loongarch64/efi/init.c
+@@ -0,0 +1,73 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2013 Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <grub/env.h>
++#include <grub/kernel.h>
++#include <grub/misc.h>
++#include <grub/mm.h>
++#include <grub/time.h>
++#include <grub/cpu/time.h>
++#include <grub/efi/efi.h>
++#include <grub/loader.h>
++
++static grub_uint64_t tmr;
++static grub_efi_event_t tmr_evt;
++
++static grub_uint64_t
++grub_efi_get_time_ms (void)
++{
++  return tmr;
++}
++
++static void
++grub_loongson_increment_timer (grub_efi_event_t event __attribute__ ((unused)),
++                 void *context __attribute__ ((unused)))
++{
++  tmr += 10;
++}
++
++void
++grub_machine_init (void)
++{
++  grub_efi_boot_services_t *b;
++
++  grub_efi_init ();
++
++  b = grub_efi_system_table->boot_services;
++  efi_call_5 (b->create_event, GRUB_EFI_EVT_TIMER | GRUB_EFI_EVT_NOTIFY_SIGNAL,
++              GRUB_EFI_TPL_CALLBACK, grub_loongson_increment_timer, NULL, &tmr_evt);
++  efi_call_3 (b->set_timer, tmr_evt, GRUB_EFI_TIMER_PERIODIC, 100000);
++
++  grub_install_get_time_ms (grub_efi_get_time_ms);
++}
++
++void
++grub_machine_fini (int flags)
++{
++  grub_efi_boot_services_t *b;
++
++  if (!(flags & GRUB_LOADER_FLAG_NORETURN))
++    return;
++
++  b = grub_efi_system_table->boot_services;
++
++  efi_call_3 (b->set_timer, tmr_evt, GRUB_EFI_TIMER_CANCEL, 0);
++  efi_call_1 (b->close_event, tmr_evt);
++
++  grub_efi_fini ();
++}
+diff --git a/grub-core/kern/loongarch64/efi/startup.S b/grub-core/kern/loongarch64/efi/startup.S
+new file mode 100644
+index 0000000..1ffff08
+--- /dev/null
++++ b/grub-core/kern/loongarch64/efi/startup.S
+@@ -0,0 +1,45 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2013  Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <grub/symbol.h>
++
++	.file 	"startup.S"
++	.text
++	.globl start, _start
++	.align		4
++
++FUNCTION(start)
++FUNCTION(_start)
++	/*
++	 *  EFI_SYSTEM_TABLE and EFI_HANDLE are passed in a1/a0.
++	 */
++	addi.d		$sp, $sp, -16
++	st.d		$ra, $sp, 0
++
++	la 		$a2, grub_efi_image_handle
++	st.d		$a0, $a2, 0
++	la		$a2, grub_efi_system_table
++	st.d		$a1, $a2, 0
++
++	bl		grub_main
++
++1:
++	ld.d		$ra, $sp, 0
++	addi.d		$sp, $sp, 16
++	jr		$ra
++
+diff --git a/grub-core/kern/loongarch64/init.c b/grub-core/kern/loongarch64/init.c
+new file mode 100644
+index 0000000..b2de930
+--- /dev/null
++++ b/grub-core/kern/loongarch64/init.c
+@@ -0,0 +1,47 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2009,2017  Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <grub/kernel.h>
++#include <grub/env.h>
++#include <grub/time.h>
++#include <grub/cpu/loongarch64.h>
++
++grub_uint32_t grub_arch_cpuclock;
++
++/* FIXME: use interrupt to count high.  */
++grub_uint64_t
++grub_get_rtc (void)
++{
++  static grub_uint32_t high = 0;
++  static grub_uint32_t last = 0;
++  grub_uint32_t low;
++
++  asm volatile ("csrrd %0, " GRUB_CPU_LOONGARCH_COP0_TIMER_COUNT : "=r" (low));
++  if (low < last)
++    high++;
++  last = low;
++
++  return (((grub_uint64_t) high) << 32) | low;
++}
++
++void
++grub_timer_init (grub_uint32_t cpuclock)
++{
++  grub_arch_cpuclock = cpuclock;
++  grub_install_get_time_ms (grub_rtc_get_time_ms);
++}
+diff --git a/grub-core/lib/gnulib-patches/fix-loongarch.patch b/grub-core/lib/gnulib-patches/fix-loongarch.patch
+new file mode 100644
+index 0000000..fa0b09a
+--- /dev/null
++++ b/grub-core/lib/gnulib-patches/fix-loongarch.patch
+@@ -0,0 +1,26 @@
++diff --git a/build-aux/config.guess b/build-aux/config.guess
++index 8e2a58b..927581d 100755
++--- a/build-aux/config.guess
+++++ b/build-aux/config.guess
++@@ -990,6 +990,9 @@ EOF
++     k1om:Linux:*:*)
++ 	echo "$UNAME_MACHINE"-unknown-linux-"$LIBC"
++ 	exit ;;
+++    loongarch32:Linux:*:* | loongarch64:Linux:*:* | loongarchx32:Linux:*:*)
+++	echo "$UNAME_MACHINE"-unknown-linux-"$LIBC"
+++	exit ;;
++     m32r*:Linux:*:*)
++ 	echo "$UNAME_MACHINE"-unknown-linux-"$LIBC"
++ 	exit ;;
++diff --git a/build-aux/config.sub b/build-aux/config.sub
++index 1fc4cde..6303428 100755
++--- a/build-aux/config.sub
+++++ b/build-aux/config.sub
++@@ -1184,6 +1184,7 @@ case $cpu-$vendor in
++ 			| k1om \
++ 			| le32 | le64 \
++ 			| lm32 \
+++			| loongarch32 | loongarch64 | loongarchx32 \
++ 			| m32c | m32r | m32rle \
++ 			| m5200 | m68000 | m680[012346]0 | m68360 | m683?2 | m68k | v70 | w65 \
++ 			| m6811 | m68hc11 | m6812 | m68hc12 | m68hcs12x | nvptx | picochip \
+diff --git a/grub-core/lib/loongarch64/relocator.c b/grub-core/lib/loongarch64/relocator.c
+new file mode 100644
+index 0000000..faa4553
+--- /dev/null
++++ b/grub-core/lib/loongarch64/relocator.c
+@@ -0,0 +1,163 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2022  Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <grub/mm.h>
++#include <grub/misc.h>
++
++#include <grub/types.h>
++#include <grub/types.h>
++#include <grub/err.h>
++#include <grub/cache.h>
++
++#include <grub/loongarch64/relocator.h>
++#include <grub/relocator_private.h>
++
++extern grub_uint8_t grub_relocator_forward_start;
++extern grub_uint8_t grub_relocator_forward_end;
++extern grub_uint8_t grub_relocator_backward_start;
++extern grub_uint8_t grub_relocator_backward_end;
++
++#define REGW_SIZEOF (4 * sizeof (grub_uint32_t))
++#define JUMP_SIZEOF (2 * sizeof (grub_uint32_t))
++
++#define RELOCATOR_SRC_SIZEOF(x) (&grub_relocator_##x##_end \
++				 - &grub_relocator_##x##_start)
++#define RELOCATOR_SIZEOF(x)	(RELOCATOR_SRC_SIZEOF(x) \
++				 + REGW_SIZEOF * 3)
++grub_size_t grub_relocator_align = sizeof (grub_uint64_t);
++grub_size_t grub_relocator_forward_size;
++grub_size_t grub_relocator_backward_size;
++grub_size_t grub_relocator_jumper_size = JUMP_SIZEOF + REGW_SIZEOF;
++
++void
++grub_cpu_relocator_init (void)
++{
++  grub_relocator_forward_size = RELOCATOR_SIZEOF(forward);
++  grub_relocator_backward_size = RELOCATOR_SIZEOF(backward);
++}
++
++static void
++write_reg (int regn, grub_uint64_t val, void **target)
++{
++  grub_uint32_t lu12iw=0x14000000;
++  grub_uint32_t ori=0x03800000;
++  grub_uint32_t lu32id=0x16000000;
++  grub_uint32_t lu52id=0x03000000;
++
++  *(grub_uint32_t *) *target = (lu12iw | (grub_uint32_t)((val & 0xfffff000)>>12<<5) | (grub_uint32_t)regn);;
++  *target = ((grub_uint32_t *) *target) + 1;
++  *(grub_uint32_t *) *target = (ori | (grub_uint32_t)((val & 0xfff)<<10) | (grub_uint32_t)(regn | regn<<5));
++  *target = ((grub_uint32_t *) *target) + 1;
++  *(grub_uint32_t *) *target = (lu32id | (grub_uint32_t)((val & 0xfffff00000000)>>32<<5) | (grub_uint32_t)regn);;
++  *target = ((grub_uint32_t *) *target) + 1;
++  *(grub_uint32_t *) *target = (lu52id | (grub_uint32_t)((val & 0xfff0000000000000)>>52<<10) | (grub_uint32_t)(regn | regn<<5));;
++  *target = ((grub_uint32_t *) *target) + 1;
++}
++
++static void
++write_jump (int regn, void **target)
++{
++  grub_uint32_t jirl=0x4c000000;
++
++  *(grub_uint32_t *) *target = (jirl | (grub_uint32_t)(regn<<5));
++  *target = ((grub_uint32_t *) *target) + 1;
++}
++
++void
++grub_cpu_relocator_jumper (void *rels, grub_addr_t addr)
++{
++  write_reg (1, addr, &rels);
++  write_jump (1, &rels);
++}
++
++void
++grub_cpu_relocator_backward (void *ptr0, void *src, void *dest,
++			     grub_size_t size)
++{
++  void *ptr = ptr0;
++  write_reg (8, (grub_uint64_t) src, &ptr);
++  write_reg (9, (grub_uint64_t) dest, &ptr);
++  write_reg (10, (grub_uint64_t) size, &ptr);
++  grub_memcpy (ptr, &grub_relocator_backward_start,
++	       RELOCATOR_SRC_SIZEOF (backward));
++}
++
++void
++grub_cpu_relocator_forward (void *ptr0, void *src, void *dest,
++			     grub_size_t size)
++{
++  void *ptr = ptr0;
++  write_reg (8, (grub_uint64_t) src, &ptr);
++  write_reg (9, (grub_uint64_t) dest, &ptr);
++  write_reg (10, (grub_uint64_t) size, &ptr);
++  grub_memcpy (ptr, &grub_relocator_forward_start,
++	       RELOCATOR_SRC_SIZEOF (forward));
++}
++
++grub_err_t
++grub_relocator64_boot (struct grub_relocator *rel,
++		       struct grub_relocator64_state state)
++{
++  grub_relocator_chunk_t ch;
++  void *ptr;
++  grub_err_t err;
++  void *relst;
++  grub_size_t relsize;
++  grub_size_t stateset_size = 31 * REGW_SIZEOF + JUMP_SIZEOF;
++  unsigned i;
++  grub_addr_t vtarget;
++
++  err = grub_relocator_alloc_chunk_align (rel, &ch, 0,
++					  (0xffffffff - stateset_size)
++					  + 1, stateset_size,
++					  grub_relocator_align,
++					  GRUB_RELOCATOR_PREFERENCE_NONE, 0);
++  if (err)
++    return err;
++
++  ptr = get_virtual_current_address (ch);
++  for (i = 1; i < 32; i++)
++    write_reg (i, state.gpr[i], &ptr);
++  write_jump (state.jumpreg, &ptr);
++
++  vtarget = (grub_addr_t) grub_map_memory (get_physical_target_address (ch),
++					   stateset_size);
++
++  err = grub_relocator_prepare_relocs (rel, vtarget, &relst, &relsize);
++  if (err)
++    return err;
++
++  grub_arch_sync_caches ((void *) relst, relsize);
++
++  asm volatile (
++                 "ibar 0 \n");
++
++  grub_uint64_t val;
++  __asm__ __volatile__(
++		  "li.w    %0, 0x4\n\t"
++		  "csrxchg $r0, %0, 0x0\n\t"
++		  : "=r"(val)
++		  :
++		  :
++		  );
++
++  ((void (*) (void)) relst) ();
++
++  /* Not reached.  */
++  return GRUB_ERR_NONE;
++}
+diff --git a/grub-core/lib/loongarch64/relocator_asm.S b/grub-core/lib/loongarch64/relocator_asm.S
+new file mode 100644
+index 0000000..ffdccc9
+--- /dev/null
++++ b/grub-core/lib/loongarch64/relocator_asm.S
+@@ -0,0 +1,51 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2022  Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <grub/symbol.h>
++
++	.p2align	4	/* force 16-byte alignment */
++
++VARIABLE (grub_relocator_forward_start)
++
++copycont1:
++	ld.d $r11,$r8,0
++	st.d $r11,$r9,0
++	addi.d $r8, $r8, 8
++	addi.d $r10, $r10, -8
++	addi.d $r9, $r9, 8
++	bne $r10, $r0, copycont1
++
++VARIABLE (grub_relocator_forward_end)
++
++VARIABLE (grub_relocator_backward_start)
++
++	add.d $r9, $r9, $r10
++	add.d $r8, $r8, $r10
++	/* Backward movsl is implicitly off-by-one.  compensate that.  */
++	addi.d $r9, $r9, -8
++	addi.d $r8, $r8, -8
++copycont2:
++	ld.w $r11,$r8,0
++	st.w $r11,$r9,0
++	addi.d $r8, $r8, -8
++	addi.d $r10, $r10, -8
++	addi.d $r9, $r9, -8
++	bne $r10, $r0, copycont2
++
++VARIABLE (grub_relocator_backward_end)
++
+diff --git a/grub-core/lib/loongarch64/setjmp.S b/grub-core/lib/loongarch64/setjmp.S
+new file mode 100644
+index 0000000..bb09959
+--- /dev/null
++++ b/grub-core/lib/loongarch64/setjmp.S
+@@ -0,0 +1,68 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2021 Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <grub/dl.h>
++
++	.file	"setjmp.S"
++
++GRUB_MOD_LICENSE "GPLv3+"
++
++	.text
++
++/*
++ * int grub_setjmp (jmp_buf env)
++ */
++FUNCTION(grub_setjmp)
++	st.d $s0, $a0, 0x0
++	st.d $s1, $a0, 0x8
++	st.d $s2, $a0, 0x10
++	st.d $s3, $a0, 0x18
++	st.d $s4, $a0, 0x20
++	st.d $s5, $a0, 0x28
++	st.d $s6, $a0, 0x30
++	st.d $s7, $a0, 0x38
++	st.d $s8, $a0, 0x40
++	st.d $fp, $a0, 0x48
++	st.d $sp, $a0, 0x50
++	st.d $ra, $a0, 0x58
++
++	move $a0, $zero
++	jr   $ra
++
++/*
++ * void grub_longjmp (jmp_buf env, int val)
++ */
++FUNCTION(grub_longjmp)
++	ld.d $s0, $a0, 0x0
++	ld.d $s1, $a0, 0x8
++	ld.d $s2, $a0, 0x10
++	ld.d $s3, $a0, 0x18
++	ld.d $s4, $a0, 0x20
++	ld.d $s5, $a0, 0x28
++	ld.d $s6, $a0, 0x30
++	ld.d $s7, $a0, 0x38
++	ld.d $s8, $a0, 0x40
++	ld.d $fp, $a0, 0x48
++	ld.d $sp, $a0, 0x50
++	ld.d $ra, $a0, 0x58
++
++	li.w $a0, 1
++	beqz $a1, .L0
++	move $a0, $a1
++.L0:
++	jr   $ra
+diff --git a/grub-core/lib/setjmp.S b/grub-core/lib/setjmp.S
+index aa297ab..da71fc7 100644
+--- a/grub-core/lib/setjmp.S
++++ b/grub-core/lib/setjmp.S
+@@ -15,6 +15,8 @@
+ #include "./arm/setjmp.S"
+ #elif defined(__aarch64__)
+ #include "./arm64/setjmp.S"
++#elif defined(__loongarch64)
++#include "./loongarch64/setjmp.S"
+ #elif defined(__riscv)
+ #include "./riscv/setjmp.S"
+ #else
+diff --git a/grub-core/loader/efi/chainloader.c b/grub-core/loader/efi/chainloader.c
+index fb874f1..faf60ef 100644
+--- a/grub-core/loader/efi/chainloader.c
++++ b/grub-core/loader/efi/chainloader.c
+@@ -345,6 +345,8 @@ static const grub_uint16_t machine_type __attribute__((__unused__)) =
+   GRUB_PE32_MACHINE_I386;
+ #elif defined(__ia64__)
+   GRUB_PE32_MACHINE_IA64;
++#elif defined(__loongarch64)
++  GRUB_PE32_MACHINE_LOONGARCH64;
+ #elif defined(__riscv) && (__riscv_xlen == 32)
+   GRUB_PE32_MACHINE_RISCV32;
+ #elif defined(__riscv) && (__riscv_xlen == 64)
+diff --git a/grub-core/loader/loongarch64/linux-efi.c b/grub-core/loader/loongarch64/linux-efi.c
+new file mode 100644
+index 0000000..4dcefd9
+--- /dev/null
++++ b/grub-core/loader/loongarch64/linux-efi.c
+@@ -0,0 +1,144 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2021 Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++#include <grub/linux.h>
++#include <grub/fdt.h>
++#include <grub/efi/efi.h>
++#include <grub/cpu/linux.h>
++#include <grub/efi/memory.h>
++#include <grub/efi/fdtload.h>
++#include <grub/charset.h>
++
++#define GRUB_EFI_PE_MAGIC	0x5A4D
++
++grub_err_t
++finalize_efi_params_linux (struct linux_loongarch64_kernel_params *kernel_params)
++{
++  int node, retval;
++
++  void *fdt;
++
++  fdt = grub_fdt_load (GRUB_EFI_LINUX_FDT_EXTRA_SPACE);
++
++  if (!fdt)
++    goto failure;
++
++  node = grub_fdt_find_subnode (fdt, 0, "chosen");
++  if (node < 0)
++    node = grub_fdt_add_subnode (fdt, 0, "chosen");
++
++  if (node < 1)
++    goto failure;
++
++  /* Set initrd info */
++  if (kernel_params->ramdisk_addr && kernel_params->ramdisk_size)
++    {
++      grub_dprintf ("linux", "Initrd @ %p-%p\n",
++		    (void *) kernel_params->ramdisk_addr,
++		    (void *) (kernel_params->ramdisk_addr + kernel_params->ramdisk_size));
++
++      retval = grub_fdt_set_prop64 (fdt, node, "linux,initrd-start",
++				    kernel_params->ramdisk_addr);
++      if (retval)
++	goto failure;
++      retval = grub_fdt_set_prop64 (fdt, node, "linux,initrd-end",
++				    kernel_params->ramdisk_addr + kernel_params->ramdisk_size);
++      if (retval)
++	goto failure;
++    }
++
++  if (grub_fdt_install() != GRUB_ERR_NONE)
++    goto failure;
++
++  return GRUB_ERR_NONE;
++
++failure:
++  grub_fdt_unload();
++  return grub_error(GRUB_ERR_BAD_OS, "failed to install/update FDT");
++}
++
++grub_err_t
++grub_arch_efi_linux_check_image (struct linux_arch_kernel_header * lh)
++{
++  if ((lh->code0 & 0xffff) == GRUB_EFI_PE_MAGIC)
++	return GRUB_ERR_NONE;
++  else
++	return 1;
++
++  grub_dprintf ("linux", "UEFI stub kernel:\n");
++  grub_dprintf ("linux", "PE/COFF header @ %08x\n", lh->hdr_offset);
++
++  return GRUB_ERR_NONE;
++}
++
++grub_err_t
++grub_arch_efi_linux_boot_image (grub_addr_t addr, grub_size_t size, char *args)
++{
++  grub_efi_memory_mapped_device_path_t *mempath;
++  grub_efi_handle_t image_handle;
++  grub_efi_boot_services_t *b;
++  grub_efi_status_t status;
++  grub_efi_loaded_image_t *loaded_image;
++  int len;
++
++  mempath = grub_malloc (2 * sizeof (grub_efi_memory_mapped_device_path_t));
++  if (!mempath)
++    return grub_errno;
++
++  mempath[0].header.type = GRUB_EFI_HARDWARE_DEVICE_PATH_TYPE;
++  mempath[0].header.subtype = GRUB_EFI_MEMORY_MAPPED_DEVICE_PATH_SUBTYPE;
++  mempath[0].header.length = grub_cpu_to_le16_compile_time (sizeof (*mempath));
++  mempath[0].memory_type = GRUB_EFI_LOADER_DATA;
++  mempath[0].start_address = addr;
++  mempath[0].end_address = addr + size;
++
++  mempath[1].header.type = GRUB_EFI_END_DEVICE_PATH_TYPE;
++  mempath[1].header.subtype = GRUB_EFI_END_ENTIRE_DEVICE_PATH_SUBTYPE;
++  mempath[1].header.length = sizeof (grub_efi_device_path_t);
++
++  b = grub_efi_system_table->boot_services;
++  status = b->load_image (0, grub_efi_image_handle,
++			  (grub_efi_device_path_t *) mempath,
++			  (void *) addr, size, &image_handle);
++  if (status != GRUB_EFI_SUCCESS)
++    return grub_error (GRUB_ERR_BAD_OS, "cannot load image");
++
++  grub_dprintf ("linux", "linux command line: '%s'\n", args);
++
++  /* Convert command line to UCS-2 */
++  loaded_image = grub_efi_get_loaded_image (image_handle);
++  loaded_image->load_options_size = len =
++    (grub_strlen (args) + 1) * sizeof (grub_efi_char16_t);
++  loaded_image->load_options =
++    grub_efi_allocate_any_pages (GRUB_EFI_BYTES_TO_PAGES (loaded_image->load_options_size));
++  if (!loaded_image->load_options)
++    return grub_errno;
++
++  loaded_image->load_options_size =
++    2 * grub_utf8_to_utf16 (loaded_image->load_options, len,
++			    (grub_uint8_t *) args, len, NULL);
++
++  grub_dprintf ("linux", "starting image %p\n", image_handle);
++  status = b->start_image (image_handle, 0, NULL);
++
++  /* When successful, not reached */
++  b->unload_image (image_handle);
++  grub_efi_free_pages ((grub_addr_t) loaded_image->load_options,
++		       GRUB_EFI_BYTES_TO_PAGES (loaded_image->load_options_size));
++
++  return grub_errno;
++}
+diff --git a/grub-core/loader/loongarch64/linux-elf.c b/grub-core/loader/loongarch64/linux-elf.c
+new file mode 100644
+index 0000000..85585b4
+--- /dev/null
++++ b/grub-core/loader/loongarch64/linux-elf.c
+@@ -0,0 +1,529 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2021 Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <grub/cpu/linux.h>
++#include <grub/linux.h>
++#include <grub/fdt.h>
++#include <grub/efi/efi.h>
++#include <grub/elfload.h>
++#include <grub/cpu/relocator.h>
++#include <grub/efi/memory.h>
++
++#define GRUB_ADDRESS_TYPE_SYSRAM	1
++#define GRUB_ADDRESS_TYPE_RESERVED	2
++#define GRUB_ADDRESS_TYPE_ACPI		3
++#define GRUB_ADDRESS_TYPE_NVS		4
++#define GRUB_ADDRESS_TYPE_PMEM		5
++#define GRUB_EFI_LOONGSON_BPI_TABLE_GUID	\
++    { 0x4660f721, 0x2ec5, 0x416a, \
++	{ 0x89, 0x9a, 0x43, 0x18, 0x02, 0x50, 0xa0, 0xc9 } \
++    }
++
++static struct grub_relocator *relocator;
++
++void grub_linux_loongarch_elf_relocator_unload (void)
++{
++  grub_relocator_unload (relocator);
++}
++
++static grub_err_t
++allocate_fdt_and_exit_boot (struct linux_loongarch64_kernel_params *kernel_params)
++{
++  int node, retval;
++  grub_err_t err;
++  unsigned int size;
++  grub_efi_uintn_t mmap_size;
++  grub_efi_uintn_t desc_size;
++  grub_efi_uint32_t desc_version;
++  grub_efi_memory_descriptor_t *mmap_buf;
++
++  size = GRUB_FDT_EMPTY_TREE_SZ + FDT_ADDR_SIZE_EXTRA + GRUB_EFI_LINUX_FDT_EXTRA_SPACE;
++
++  kernel_params->fdt = grub_efi_allocate_any_pages (GRUB_EFI_BYTES_TO_PAGES (size));
++  if (!kernel_params->fdt)
++    return GRUB_ERR_OUT_OF_MEMORY;
++
++  grub_fdt_create_empty_tree (kernel_params->fdt, size);
++  grub_fdt_set_prop32 (kernel_params->fdt, 0, FDT_ADDR_CELLS_STRING, 2);
++  grub_fdt_set_prop32 (kernel_params->fdt, 0, FDT_SIZE_CELLS_STRING, 2);
++
++  node = grub_fdt_find_subnode (kernel_params->fdt, 0, "chosen");
++  if (node < 0)
++    node = grub_fdt_add_subnode (kernel_params->fdt, 0, "chosen");
++  if (node < 1)
++    goto failure;
++
++  grub_dprintf ("loongson", "command_line %s, len %ld\n",
++                (char *)kernel_params->linux_args,
++                grub_strlen(kernel_params->linux_args) + 1);
++  if ((kernel_params->linux_args != NULL) && (grub_strlen(kernel_params->linux_args) > 0)) {
++    retval = grub_fdt_set_prop (kernel_params->fdt, node, "bootargs", kernel_params->linux_args,
++				grub_strlen(kernel_params->linux_args) + 1);
++    if (retval)
++      goto failure;
++  }
++
++  /* Set initrd info */
++  if (kernel_params->ramdisk_addr && kernel_params->ramdisk_size)
++  {
++    grub_dprintf ("linux", "Initrd @ %p-%p\n",
++		    (void *) kernel_params->ramdisk_addr,
++		    (void *) (kernel_params->ramdisk_addr + kernel_params->ramdisk_size));
++
++    retval = grub_fdt_set_prop64 (kernel_params->fdt, node, "linux,initrd-start",
++				    kernel_params->ramdisk_addr);
++    if (retval)
++	  goto failure;
++    retval = grub_fdt_set_prop64 (kernel_params->fdt, node, "linux,initrd-end",
++		                  (grub_uint64_t) (kernel_params->ramdisk_addr + kernel_params->ramdisk_size));
++    if (retval)
++	  goto failure;
++  }
++
++  node = grub_fdt_find_subnode (kernel_params->fdt, 0, "chosen");
++  retval = grub_fdt_set_prop64 (kernel_params->fdt, node, "linux,uefi-system-table",
++		                (grub_uint64_t)grub_efi_system_table);
++  if (retval)
++	goto failure;
++
++  mmap_size = grub_efi_find_mmap_size ();
++  if (! mmap_size)
++    return grub_errno;
++  mmap_buf = grub_efi_allocate_any_pages (GRUB_EFI_BYTES_TO_PAGES (mmap_size));
++  if (! mmap_buf)
++    return grub_error (GRUB_ERR_IO, "cannot allocate memory map");
++  err = grub_efi_finish_boot_services (&mmap_size, mmap_buf, NULL,
++                                       &desc_size, &desc_version);
++  if (err)
++    return err;
++
++  if (!mmap_buf || !mmap_size || !desc_size)
++    return GRUB_ERR_BAD_ARGUMENT;
++
++  retval = grub_fdt_set_prop64 (kernel_params->fdt, node, "linux,uefi-mmap-start",
++		                (grub_uint64_t)mmap_buf);
++  if (retval)
++	goto failure;
++
++  retval = grub_fdt_set_prop32 (kernel_params->fdt, node, "linux,uefi-mmap-size",
++		                mmap_size);
++  if (retval)
++	goto failure;
++
++  retval = grub_fdt_set_prop32 (kernel_params->fdt, node, "linux,uefi-mmap-desc-size",
++		                desc_size);
++  if (retval)
++	goto failure;
++
++  retval = grub_fdt_set_prop32 (kernel_params->fdt, node, "linux,uefi-mmap-desc-ver",
++		                desc_version);
++  if (retval)
++	goto failure;
++
++  return GRUB_ERR_NONE;
++
++failure:
++  if (!kernel_params->fdt) {
++    return GRUB_ERR_BAD_OS;
++  }
++  grub_efi_free_pages ((grub_addr_t) kernel_params->fdt,
++		       GRUB_EFI_BYTES_TO_PAGES (grub_fdt_get_totalsize (kernel_params->fdt)));
++  kernel_params->fdt = NULL;
++  return grub_error(GRUB_ERR_BAD_OS, "failed to install/update FDT");
++}
++
++static void
++grub_linux_loongarch_elf_make_argv (struct linux_loongarch64_kernel_params *kernel_params)
++{
++  static void* linux_args_addr;
++  int size;
++  grub_uint64_t *linux_argv;
++  char *args, *p, *linux_args;
++  int i, argc;
++  grub_err_t err;
++
++  argc = kernel_params->linux_argc;
++  args = kernel_params->linux_args;
++
++  /* new size */
++  p = args;
++  size = (argc + 3 + 1) * sizeof (grub_uint64_t);  /* orig arguments */
++  for (i = 0; i < argc; i++)
++    {
++      size += ALIGN_UP (grub_strlen (p) + 1, 4);
++      p += grub_strlen (p) + 1;
++    }
++
++  if (kernel_params->ramdisk_addr && kernel_params->ramdisk_size)
++  {
++    size += ALIGN_UP (sizeof ("rd_start=0xXXXXXXXXXXXXXXXX"), 4) \
++	  + ALIGN_UP (sizeof ("rd_size=0xXXXXXXXXXXXXXXXX"), 4) \
++	  + ALIGN_UP (sizeof ("initrd=0xXXXXXXXXXXXXXXXX,0xXXXXXXXXXXXXXXXX"),
++		      4);
++  }
++  size = ALIGN_UP (size, 8);
++
++  /* alloc memory */
++  linux_args_addr = grub_linux_loongarch_alloc_virtual_mem_align (size, 8, &err);
++
++  linux_argv = linux_args_addr;
++  linux_args = (char *)(linux_argv + (argc + 1 + 3));
++  p = args;
++  for (i = 0; i < argc; i++)
++    {
++      grub_memcpy (linux_args, p, grub_strlen (p) + 1);
++      *linux_argv = (grub_uint64_t) (grub_addr_t) linux_args;
++      linux_argv++;
++      linux_args += ALIGN_UP (grub_strlen (p) + 1, 4);
++      p += grub_strlen (p) + 1;
++    }
++
++  if (kernel_params->ramdisk_addr && kernel_params->ramdisk_size)
++  {
++    /* rd_start */
++    grub_snprintf (linux_args,
++		 sizeof ("rd_start=0xXXXXXXXXXXXXXXXX"),
++		 "rd_start=0x%lx",
++		 (grub_uint64_t) kernel_params->ramdisk_addr);
++    *linux_argv = (grub_uint64_t) (grub_addr_t) linux_args;
++    linux_argv++;
++    linux_args += ALIGN_UP (sizeof ("rd_start=0xXXXXXXXXXXXXXXXX"), 4);
++    kernel_params->linux_argc++;
++
++    /* rd_size */
++    grub_snprintf (linux_args,
++		 sizeof ("rd_size=0xXXXXXXXXXXXXXXXX"),
++		 "rd_size=0x%lx",
++		 (grub_uint64_t) kernel_params->ramdisk_size);
++    *linux_argv = (grub_uint64_t) (grub_addr_t) linux_args;
++    linux_argv++;
++    linux_args += ALIGN_UP (sizeof ("rd_size=0xXXXXXXXXXXXXXXXX"), 4);
++    kernel_params->linux_argc++;
++
++    /* initrd */
++    grub_snprintf (linux_args,
++		 sizeof ("initrd=0xXXXXXXXXXXXXXXXX,0xXXXXXXXXXXXXXXXX"),
++		 "initrd=0x%lx,0x%lx",
++		 ((grub_uint64_t) kernel_params->ramdisk_addr & 0xffffffff),
++		 (grub_uint64_t) kernel_params->ramdisk_size);
++    *linux_argv = (grub_uint64_t) (grub_addr_t) linux_args;
++    linux_argv++;
++    linux_args += ALIGN_UP (sizeof ("initrd=0xXXXXXXXXXXXXXXXX,0xXXXXXXXXXXXXXXXX"), 4);
++    kernel_params->linux_argc++;
++  }
++
++  /* Reserve space for initrd arguments.  */
++  *linux_argv = 0;
++
++  grub_free (kernel_params->linux_args);
++  kernel_params->linux_argv = (grub_addr_t) linux_args_addr;
++}
++
++grub_err_t
++grub_linux_loongarch_elf_linux_boot_image (struct linux_loongarch64_kernel_params
++					   *kernel_params)
++{
++  struct boot_params_interface *boot_params = NULL;
++  struct grub_relocator64_state state;
++  grub_err_t err;
++
++  /* linux kernel type is ELF */
++  grub_memset (&state, 0, sizeof (state));
++
++  state.jumpreg = 1;
++  state.gpr[1] = kernel_params->kernel_addr;  /* ra */
++  if (grub_linux_loongarch_elf_get_boot_params (&boot_params) == 0)
++    {
++      grub_printf("not find param, is fdt boot\n");
++      if (allocate_fdt_and_exit_boot (kernel_params) != GRUB_ERR_NONE)
++        return grub_errno;
++      state.gpr[4] = 1 << FLAGS_EFI_SUPPORT_BIT;   /* a0 = flag */
++      state.gpr[5] = (grub_uint64_t)kernel_params->fdt; /* a1 = fdt */
++      state.gpr[6] = 0; /* a2 = flag */
++    } else {
++      grub_printf("find param, is bpi boot\n");
++      grub_linux_loongarch_elf_make_argv (kernel_params);
++      state.gpr[4] = kernel_params->linux_argc;   /* a0 = argc */
++      state.gpr[5] = kernel_params->linux_argv; /* a1 = args */
++      state.gpr[6] = (grub_uint64_t) boot_params; /* a2 = envp */
++      err = grub_linux_loongarch_elf_boot_params (boot_params);
++      if (err)
++        return err;
++    }
++
++  /* Boot the ELF kernel */
++  grub_relocator64_boot (relocator, state);
++
++  return GRUB_ERR_NONE;
++}
++
++void*
++grub_linux_loongarch_alloc_virtual_mem_addr (grub_addr_t addr,
++					     grub_size_t size,
++					     grub_err_t *err)
++{
++  relocator = grub_relocator_new ();
++  if (!relocator)
++    return NULL;
++
++  grub_relocator_chunk_t ch;
++  *err = grub_relocator_alloc_chunk_addr (relocator, &ch,
++					 grub_vtop ((void *) addr),
++					 size);
++  if (*err)
++    return NULL;
++  return get_virtual_current_address (ch);
++}
++
++void*
++grub_linux_loongarch_alloc_virtual_mem_align (grub_size_t size,
++					      grub_size_t align,
++					      grub_err_t *err)
++{
++  grub_relocator_chunk_t ch;
++
++  *err = grub_relocator_alloc_chunk_align (relocator, &ch,
++					  0, (0xffffffff - size) + 1,
++					  size, align,
++					  GRUB_RELOCATOR_PREFERENCE_LOW, 0);
++  return get_virtual_current_address (ch);
++}
++
++int
++grub_linux_loongarch_elf_get_boot_params (struct boot_params_interface **boot_params)
++{
++  grub_efi_configuration_table_t *tables;
++  grub_efi_guid_t bpi_guid = GRUB_EFI_LOONGSON_BPI_TABLE_GUID;
++  unsigned int i;
++  int found = 0;
++
++  /* Look for Loongson BPI in UEFI config tables. */
++  tables = grub_efi_system_table->configuration_table;
++
++  for (i = 0; i < grub_efi_system_table->num_table_entries; i++)
++    if (grub_memcmp (&tables[i].vendor_guid, &bpi_guid, sizeof (bpi_guid)) == 0)
++      {
++	*boot_params = tables[i].vendor_table;
++	char *p = (char*) &((*boot_params)->signature);
++	if (grub_strncmp (p, "BPI", 3) == 0)
++	  {
++	    found = 1;
++	    break;
++	  }
++      }
++  return found;
++}
++
++static grub_uint8_t
++grub_kernel_update_checksum (const grub_uint8_t *buffer, grub_efi_uintn_t length)
++{
++  grub_uint8_t sum;
++  grub_efi_uintn_t count;
++
++  for (sum = 0, count = 0; count < length; count++)
++  {
++    sum = (grub_uint8_t) (sum + *(buffer + count));
++  }
++
++  return (grub_uint8_t) (0x100 - sum);
++}
++
++static grub_uint32_t
++grub_efi_loongarch64_memmap_sort (struct memmap array[],
++				  grub_uint32_t length,
++				  struct loongsonlist_mem_map* bpmem,
++				  grub_uint32_t index,
++				  grub_uint32_t memtype)
++{
++  grub_uint64_t tempmemsize = 0;
++  grub_uint32_t j = 0;
++  grub_uint32_t t = 0;
++
++  for(j = 0; j < length;)
++  {
++    tempmemsize = array[j].mem_size;
++    for(t = j + 1; t < length; t++)
++    {
++      if(array[j].mem_start + tempmemsize == array[t].mem_start)
++      {
++        tempmemsize += array[t].mem_size;
++      }
++      else
++      {
++        break;
++      }
++    }
++    bpmem->map[index].mem_type = memtype;
++    bpmem->map[index].mem_start = array[j].mem_start;
++    bpmem->map[index].mem_size = tempmemsize;
++    grub_printf("map[%d]:type %"PRIuGRUB_UINT32_T", start 0x%"
++		PRIxGRUB_UINT64_T", end 0x%"PRIxGRUB_UINT64_T"\n",
++		index,
++		bpmem->map[index].mem_type,
++		bpmem->map[index].mem_start,
++		bpmem->map[index].mem_start+ bpmem->map[index].mem_size
++	       );
++    j = t;
++    index++;
++  }
++  return index;
++}
++
++grub_err_t
++grub_linux_loongarch_elf_boot_params (struct boot_params_interface *boot_params)
++{
++  grub_int8_t checksum = 0;
++  grub_err_t err;
++
++  struct loongsonlist_mem_map *loongson_mem_map = NULL;
++  struct _extention_list_hdr * listpointer = NULL;
++  grub_uint32_t tmp_index = 0;
++  grub_efi_memory_descriptor_t * lsdesc = NULL;
++
++  grub_uint32_t free_index = 0;
++  grub_uint32_t reserve_index = 0;
++  grub_uint32_t acpi_table_index = 0;
++  grub_uint32_t acpi_nvs_index = 0;
++
++  grub_efi_uintn_t mmap_size;
++  grub_efi_uintn_t desc_size;
++  grub_efi_memory_descriptor_t *mmap_buf;
++
++  struct memmap reserve_mem[GRUB_LOONGSON3_BOOT_MEM_MAP_MAX];
++  struct memmap free_mem[GRUB_LOONGSON3_BOOT_MEM_MAP_MAX];
++  struct memmap acpi_table_mem[GRUB_LOONGSON3_BOOT_MEM_MAP_MAX];
++  struct memmap acpi_nvs_mem[GRUB_LOONGSON3_BOOT_MEM_MAP_MAX];
++
++  grub_memset (reserve_mem, 0, sizeof(struct memmap) * GRUB_LOONGSON3_BOOT_MEM_MAP_MAX);
++  grub_memset (free_mem, 0, sizeof(struct memmap) * GRUB_LOONGSON3_BOOT_MEM_MAP_MAX);
++  grub_memset (acpi_table_mem, 0, sizeof(struct memmap) * GRUB_LOONGSON3_BOOT_MEM_MAP_MAX);
++  grub_memset (acpi_nvs_mem, 0, sizeof(struct memmap) * GRUB_LOONGSON3_BOOT_MEM_MAP_MAX);
++
++  /* Check extlist headers */
++  listpointer = boot_params->extlist;
++  for( ;listpointer != NULL; listpointer = listpointer->next)
++    {
++      char *pl= (char *)&(listpointer->signature);
++      if(grub_strncmp(pl, "MEM", 3) == 0)
++        {
++          loongson_mem_map = (struct loongsonlist_mem_map *)listpointer;
++          break;
++        }
++    }
++
++  mmap_size = grub_efi_find_mmap_size ();
++  if (! mmap_size)
++    return grub_errno;
++  mmap_buf = grub_efi_allocate_any_pages (GRUB_EFI_BYTES_TO_PAGES (mmap_size));
++  if (! mmap_buf)
++    return grub_error (GRUB_ERR_IO, "cannot allocate memory map");
++
++  err = grub_efi_finish_boot_services (&mmap_size, mmap_buf, NULL,
++				       &desc_size, NULL);
++  if (err)
++    return err;
++
++  if (!mmap_buf || !mmap_size || !desc_size)
++    return -1;
++
++  /*
++     According to UEFI SPEC,mmap_buf is the accurate Memory Map array \
++     now we can fill platform specific memory structure.
++     */
++  for (lsdesc = mmap_buf; lsdesc < (grub_efi_memory_descriptor_t *)((char *)mmap_buf + mmap_size);
++      lsdesc = (grub_efi_memory_descriptor_t *)((char *)lsdesc + desc_size))
++    {
++      /* System RAM */
++      if((lsdesc->type != GRUB_EFI_ACPI_RECLAIM_MEMORY) && \
++	 (lsdesc->type != GRUB_EFI_ACPI_MEMORY_NVS) && \
++	 (lsdesc->type != GRUB_EFI_RUNTIME_SERVICES_DATA) && \
++	 (lsdesc->type != GRUB_EFI_RUNTIME_SERVICES_CODE) && \
++	 (lsdesc->type != GRUB_EFI_RESERVED_MEMORY_TYPE) && \
++	 (lsdesc->type != GRUB_EFI_PAL_CODE))
++	{
++	  free_mem[free_index].mem_type = GRUB_ADDRESS_TYPE_SYSRAM;
++	  free_mem[free_index].mem_start = (lsdesc->physical_start) & GRUB_EFI_MAX_PHY_ADDRESS;
++	  free_mem[free_index].mem_size = lsdesc->num_pages * GRUB_EFI_PAGE_SIZE;
++	  free_index++;
++
++	  /*ACPI*/
++	}else if((lsdesc->type == GRUB_EFI_ACPI_RECLAIM_MEMORY)){
++	    acpi_table_mem[acpi_table_index].mem_type = GRUB_ADDRESS_TYPE_ACPI;
++	    acpi_table_mem[acpi_table_index].mem_start = (lsdesc->physical_start) & GRUB_EFI_MAX_PHY_ADDRESS;
++	    acpi_table_mem[acpi_table_index].mem_size = lsdesc->num_pages * GRUB_EFI_PAGE_SIZE;
++	    acpi_table_index++;
++	}else if((lsdesc->type == GRUB_EFI_ACPI_MEMORY_NVS)){
++	    acpi_nvs_mem[acpi_nvs_index].mem_type = GRUB_ADDRESS_TYPE_NVS;
++	    acpi_nvs_mem[acpi_nvs_index].mem_start = (lsdesc->physical_start) & GRUB_EFI_MAX_PHY_ADDRESS;
++	    acpi_nvs_mem[acpi_nvs_index].mem_size = lsdesc->num_pages * GRUB_EFI_PAGE_SIZE;
++	    acpi_nvs_index++;
++
++	/* Reserve */
++	}else{
++	    reserve_mem[reserve_index].mem_type = GRUB_ADDRESS_TYPE_RESERVED;
++	    reserve_mem[reserve_index].mem_start = (lsdesc->physical_start) & GRUB_EFI_MAX_PHY_ADDRESS;
++	    reserve_mem[reserve_index].mem_size = lsdesc->num_pages * GRUB_EFI_PAGE_SIZE;
++	    reserve_index++;
++	}
++    }
++
++  tmp_index = loongson_mem_map->map_count;
++  /*System RAM Sort*/
++  tmp_index = grub_efi_loongarch64_memmap_sort(free_mem,
++						free_index,
++						loongson_mem_map,
++						tmp_index,
++						GRUB_ADDRESS_TYPE_SYSRAM);
++  /*ACPI Sort*/
++  tmp_index = grub_efi_loongarch64_memmap_sort(acpi_table_mem,
++						acpi_table_index,
++						loongson_mem_map,
++						tmp_index,
++						GRUB_ADDRESS_TYPE_ACPI);
++  tmp_index = grub_efi_loongarch64_memmap_sort(acpi_nvs_mem,
++						acpi_nvs_index,
++						loongson_mem_map,
++						tmp_index,
++						GRUB_ADDRESS_TYPE_NVS);
++
++  /*Reserve Sort*/
++  {
++    grub_uint64_t loongarch_addr;
++    asm volatile ("csrrd %0, 0x181" : "=r" (loongarch_addr));
++    if ((loongarch_addr & 0xff00000000000000) == 0x9000000000000000)
++      tmp_index = grub_efi_loongarch64_memmap_sort(reserve_mem,
++						reserve_index,
++						loongson_mem_map,
++						tmp_index,
++						GRUB_ADDRESS_TYPE_RESERVED);
++    else
++      tmp_index = grub_efi_loongarch64_memmap_sort(reserve_mem,
++						reserve_index,
++						loongson_mem_map,
++						tmp_index,
++						GRUB_ADDRESS_TYPE_RESERVED + 1);
++  }
++  loongson_mem_map->map_count = tmp_index;
++  loongson_mem_map->header.checksum = 0;
++
++  checksum = grub_kernel_update_checksum ((grub_uint8_t *) loongson_mem_map,
++					  loongson_mem_map->header.length);
++  loongson_mem_map->header.checksum = checksum;
++
++  return grub_errno;
++}
+diff --git a/grub-core/loader/loongarch64/linux.c b/grub-core/loader/loongarch64/linux.c
+new file mode 100644
+index 0000000..783054b
+--- /dev/null
++++ b/grub-core/loader/loongarch64/linux.c
+@@ -0,0 +1,398 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2021 Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <grub/loader.h>
++#include <grub/misc.h>
++#include <grub/command.h>
++#include <grub/i18n.h>
++#include <grub/lib/cmdline.h>
++#include <grub/linux.h>
++#include <grub/cpu/linux.h>
++#include <grub/efi/memory.h>
++
++GRUB_MOD_LICENSE ("GPLv3+");
++
++#define INITRD_MAX_ADDRESS_OFFSET (32ULL * 1024 * 1024 * 1024)
++
++static struct linux_loongarch64_kernel_params kernel_params;
++
++static grub_addr_t phys_addr;
++static grub_dl_t my_mod;
++static int loaded;
++static int is_bpi_boot;
++static int grub_loongarch_linux_type = GRUB_LOONGARCH_LINUX_BAD;
++
++static grub_err_t
++grub_linux_boot (void)
++{
++
++  if (grub_loongarch_linux_type == GRUB_LOONGARCH_LINUX_EFI) {
++      if (finalize_efi_params_linux (&kernel_params) != GRUB_ERR_NONE)
++        return grub_errno;
++      return (grub_arch_efi_linux_boot_image((grub_addr_t) kernel_params.kernel_addr,
++					     kernel_params.kernel_size,
++					     kernel_params.linux_args));
++  }
++  if (grub_loongarch_linux_type == GRUB_LOONGARCH_LINUX_ELF) {
++      return grub_linux_loongarch_elf_linux_boot_image (&kernel_params);
++  }
++
++  return GRUB_ERR_NONE;
++}
++
++static grub_err_t
++grub_linux_unload (void)
++{
++
++  if (grub_loongarch_linux_type == GRUB_LOONGARCH_LINUX_EFI) {
++      if (kernel_params.ramdisk_addr)
++	grub_efi_free_pages ((grub_efi_physical_address_t) kernel_params.ramdisk_addr,
++			     GRUB_EFI_BYTES_TO_PAGES (kernel_params.ramdisk_size));
++      kernel_params.ramdisk_size = 0;
++
++      if (kernel_params.kernel_addr)
++	grub_efi_free_pages ((grub_addr_t) kernel_params.kernel_addr,
++			     GRUB_EFI_BYTES_TO_PAGES (kernel_params.kernel_size));
++      kernel_params.kernel_addr = 0;
++  }
++
++  if (grub_loongarch_linux_type == GRUB_LOONGARCH_LINUX_ELF) {
++      grub_free (kernel_params.linux_args);
++      kernel_params.linux_args = 0;
++      grub_linux_loongarch_elf_relocator_unload ();
++  }
++
++  grub_dl_unref (my_mod);
++  loaded = 0;
++  grub_loongarch_linux_type = GRUB_LOONGARCH_LINUX_BAD;
++
++  return GRUB_ERR_NONE;
++}
++
++grub_err_t
++grub_linux_loongarch_elf_load_kernel (grub_elf_t elf, const char *filename)
++{
++  Elf64_Addr base;
++  grub_err_t err;
++  grub_uint8_t *playground;
++  grub_uint64_t addr;
++  int flag;
++
++  /* Linux's entry point incorrectly contains a virtual address.  */
++  kernel_params.kernel_addr = elf->ehdr.ehdr64.e_entry;
++  kernel_params.kernel_size = grub_elf64_size (elf, &base, 0);
++
++  if (kernel_params.kernel_size == 0)
++    return grub_errno;
++
++  phys_addr = base;
++  kernel_params.kernel_size = ALIGN_UP (base + kernel_params.kernel_size - base, 8);
++
++  asm volatile ("csrrd %0, 0x181" : "=r" (addr));
++  if (addr & 0x1) {
++    flag = GRUB_ELF_LOAD_FLAGS_NONE;
++  } else {
++    flag = GRUB_ELF_LOAD_FLAGS_30BITS;
++    base &= ~ELF64_LOADMASK;
++    kernel_params.kernel_addr &= ~ELF64_LOADMASK;
++  }
++
++  playground = grub_linux_loongarch_alloc_virtual_mem_addr (phys_addr,
++							    kernel_params.kernel_size,
++							    &err);
++  if (playground == NULL)
++    return err;
++
++  /* Now load the segments into the area we claimed.  */
++  return grub_elf64_load (elf, filename, playground - base,
++			  flag, 0, 0);
++}
++
++static grub_err_t
++grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
++		int argc, char *argv[])
++{
++  grub_file_t file = 0;
++  struct linux_arch_kernel_header lh;
++  struct boot_params_interface *boot_params = NULL;
++  grub_elf_t elf = NULL;
++  grub_err_t err;
++  grub_size_t cmdline_size;
++  int i;
++
++  grub_dl_ref (my_mod);
++
++  /* Release the previously used memory.  */
++  grub_loader_unset ();
++
++  if (argc == 0)
++    {
++      grub_error (GRUB_ERR_BAD_ARGUMENT, N_("filename expected"));
++      goto fail;
++    }
++
++  file = grub_file_open (argv[0], GRUB_FILE_TYPE_LINUX_KERNEL);
++  if (!file)
++    goto fail;
++
++  kernel_params.kernel_size = grub_file_size (file);
++  grub_dprintf ("linux", "kernel file size: %" PRIuGRUB_SIZE "\n",
++		kernel_params.kernel_size);
++
++  if (grub_file_read (file, &lh, sizeof (lh)) < (long) sizeof (lh))
++    return grub_errno;
++
++  if (grub_arch_efi_linux_check_image (&lh) == GRUB_ERR_NONE) {
++    grub_loongarch_linux_type = GRUB_LOONGARCH_LINUX_EFI;
++  }
++
++  if (grub_loongarch_linux_type != GRUB_LOONGARCH_LINUX_EFI) {
++    elf = grub_elf_file (file, argv[0]);
++    if (elf != NULL)
++    {
++      /* linux kernel type is ELF */
++      grub_loongarch_linux_type = GRUB_LOONGARCH_LINUX_ELF;
++      if (elf->ehdr.ehdr64.e_type != ET_EXEC)
++	{
++	  grub_error (GRUB_ERR_UNKNOWN_OS,
++		      N_("this ELF file is not of the right type"));
++	  goto fail;
++	}
++      if (elf->ehdr.ehdr64.e_machine != EM_LOONGARCH)
++	{
++	  grub_error (GRUB_ERR_BAD_OS, "invalid magic number");
++	  goto fail;
++	}
++
++      if (grub_elf_is_elf64 (elf))
++	{
++	  err = grub_linux_loongarch_elf_load_kernel (elf, argv[0]);
++	  if (err)
++	    goto fail;
++	} else {
++	    grub_error (GRUB_ERR_BAD_OS, N_("invalid arch-dependent ELF magic"));
++	    goto fail;
++	}
++      grub_dprintf ("linux", "kernel @ %p\n", (void*) elf->ehdr.ehdr64.e_entry);
++    }
++  } else {
++      if (grub_file_seek (file, 0) == (grub_off_t) -1)
++	goto fail;
++
++      if (grub_file_read (file, &lh, sizeof (lh)) < (grub_ssize_t) sizeof (lh))
++	{
++	  if (!grub_errno)
++	    grub_error (GRUB_ERR_BAD_OS, N_("premature end of file %s"),
++			argv[0]);
++	  goto fail;
++	}
++
++      if (grub_arch_efi_linux_check_image (&lh) != GRUB_ERR_NONE)
++	{
++	  goto fail;
++	}
++      /* linux kernel type is EFI */
++      grub_loongarch_linux_type = GRUB_LOONGARCH_LINUX_EFI;
++      kernel_params.kernel_addr = (grub_addr_t) grub_efi_allocate_any_pages (
++				GRUB_EFI_BYTES_TO_PAGES (kernel_params.kernel_size));
++      grub_dprintf ("linux", "kernel numpages: %" PRIuGRUB_SIZE "\n",
++		    GRUB_EFI_BYTES_TO_PAGES (kernel_params.kernel_size));
++      if (!kernel_params.kernel_addr)
++	{
++	  grub_error (GRUB_ERR_OUT_OF_MEMORY, N_("out of memory"));
++	  goto fail;
++	}
++
++      grub_file_seek (file, 0);
++      if (grub_file_read (file, (void*) kernel_params.kernel_addr, kernel_params.kernel_size)
++	  < (grub_int64_t) kernel_params.kernel_size)
++	{
++	  if (!grub_errno)
++	    grub_error (GRUB_ERR_BAD_OS, N_("premature end of file %s"), argv[0]);
++	  goto fail;
++	}
++
++      grub_dprintf ("linux", "kernel @ %p\n", (void*) kernel_params.kernel_addr);
++    }
++
++  cmdline_size = grub_loader_cmdline_size (argc, argv) + sizeof (LINUX_IMAGE);
++  kernel_params.linux_argc = argc;
++  kernel_params.linux_args = grub_malloc (cmdline_size);
++  if (!kernel_params.linux_args)
++    {
++      grub_error (GRUB_ERR_OUT_OF_MEMORY, N_("out of memory"));
++      goto fail;
++    }
++
++  grub_memcpy (kernel_params.linux_args, LINUX_IMAGE, sizeof (LINUX_IMAGE));
++
++  if (grub_linux_loongarch_elf_get_boot_params (&boot_params) == 1)
++    is_bpi_boot = 1;
++  else
++    is_bpi_boot = 0;
++
++  if (is_bpi_boot == 0)
++    {
++      err = grub_create_loader_cmdline (argc, argv,
++					(char*) ((grub_addr_t) kernel_params.linux_args + sizeof (LINUX_IMAGE) - 1),
++					cmdline_size,
++					GRUB_VERIFY_KERNEL_CMDLINE);
++      if (err)
++	goto fail;
++    } else {
++      /* save args from linux cmdline */
++      char *p = kernel_params.linux_args;
++
++      p += sizeof (LINUX_IMAGE) - 1;
++      for (i=0; i < argc; i++)
++	{
++	  grub_memcpy (p, argv[i], grub_strlen(argv[i]) + 1);
++	  p += grub_strlen(argv[i]) + 1;
++	}
++  }
++
++  if (grub_errno == GRUB_ERR_NONE)
++    {
++      grub_loader_set (grub_linux_boot, grub_linux_unload, 0);
++      loaded = 1;
++    }
++
++fail:
++  if (elf != NULL) {
++      /* grub_elf_close will call grub_file_close() */
++      grub_elf_close (elf);
++  } else {
++      if (file)
++	grub_file_close (file);
++  }
++
++  if (grub_errno != GRUB_ERR_NONE)
++    {
++      grub_dl_unref (my_mod);
++      loaded = 0;
++    }
++
++  if (kernel_params.linux_args && !loaded)
++    grub_free (kernel_params.linux_args);
++
++  if (grub_loongarch_linux_type == GRUB_LOONGARCH_LINUX_EFI) {
++      if (kernel_params.kernel_addr && !loaded)
++	grub_efi_free_pages ((grub_addr_t) kernel_params.kernel_addr,
++			     GRUB_EFI_BYTES_TO_PAGES (kernel_params.kernel_size));
++  }
++
++  return grub_errno;
++}
++
++/*
++ * This function returns a pointer to a legally allocated initrd buffer,
++ * or NULL if unsuccessful
++ */
++static void *
++allocate_initrd_mem (int initrd_pages)
++{
++  grub_addr_t max_addr;
++
++  if (grub_efi_get_ram_base (&max_addr) != GRUB_ERR_NONE)
++    return NULL;
++
++  max_addr += INITRD_MAX_ADDRESS_OFFSET - 1;
++
++  return grub_efi_allocate_pages_real (max_addr, initrd_pages,
++                                       GRUB_EFI_ALLOCATE_MAX_ADDRESS,
++                                       GRUB_EFI_LOADER_DATA);
++}
++
++
++static grub_err_t
++grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
++		 int argc, char *argv[])
++{
++  struct grub_linux_initrd_context initrd_ctx = { 0, 0, 0 };
++  grub_size_t initrd_size;
++  void *initrd_mem = NULL;
++
++  if (argc == 0)
++    {
++      return grub_error (GRUB_ERR_BAD_ARGUMENT, N_("filename expected"));
++      goto fail;
++    }
++
++  if (!loaded)
++    {
++      return grub_error (GRUB_ERR_BAD_ARGUMENT, N_("you need to load the kernel first"));
++      goto fail;
++    }
++
++  if (grub_initrd_init (argc, argv, &initrd_ctx))
++    goto fail;
++
++  initrd_size = grub_get_initrd_size (&initrd_ctx);
++  grub_dprintf ("linux", "Loading initrd\n");
++
++  if (is_bpi_boot == 0) {
++      grub_size_t initrd_pages;
++      initrd_pages = (GRUB_EFI_BYTES_TO_PAGES (initrd_size));
++      initrd_mem = allocate_initrd_mem (initrd_pages);
++  } else {
++      grub_err_t err;
++      initrd_mem = grub_linux_loongarch_alloc_virtual_mem_align (initrd_size, 0x10000, &err);
++      if (err)
++	goto fail;
++  }
++
++  if (!initrd_mem)
++    {
++      grub_error (GRUB_ERR_OUT_OF_MEMORY, N_("out of memory"));
++      goto fail;
++    }
++
++  if (grub_initrd_load (&initrd_ctx, argv, initrd_mem))
++    goto fail;
++
++  /* save ramdisk addr and size */
++  kernel_params.ramdisk_addr = (grub_addr_t) initrd_mem;
++  kernel_params.ramdisk_size = initrd_size;
++  grub_dprintf ("linux", "ramdisk [addr=%p, size=0x%lx]\n",
++		(void *) initrd_mem, initrd_size);
++fail:
++  grub_initrd_close (&initrd_ctx);
++  if (is_bpi_boot == 0) {
++      if (initrd_mem && !kernel_params.ramdisk_addr)
++	grub_efi_free_pages ((grub_addr_t) initrd_mem,
++			     GRUB_EFI_BYTES_TO_PAGES (initrd_size));
++  }
++  return grub_errno;
++}
++
++static grub_command_t cmd_linux, cmd_initrd;
++
++GRUB_MOD_INIT(linux)
++{
++  cmd_linux = grub_register_command ("linux", grub_cmd_linux,
++				     N_("FILE [ARGS...]"), N_("Load Linux."));
++  cmd_initrd = grub_register_command ("initrd", grub_cmd_initrd,
++				      N_("FILE"), N_("Load initrd."));
++  my_mod = mod;
++}
++
++GRUB_MOD_FINI(linux)
++{
++  grub_unregister_command (cmd_linux);
++  grub_unregister_command (cmd_initrd);
++}
+diff --git a/include/grub/efi/api.h b/include/grub/efi/api.h
+index f431f49..a74ce39 100644
+--- a/include/grub/efi/api.h
++++ b/include/grub/efi/api.h
+@@ -2104,7 +2104,7 @@ typedef struct grub_efi_ip6_config_manual_address grub_efi_ip6_config_manual_add
+ 
+ #if (GRUB_TARGET_SIZEOF_VOID_P == 4) || defined (__ia64__) \
+   || defined (__aarch64__) || defined (__MINGW64__) || defined (__CYGWIN__) \
+-  || defined(__riscv)
++  || defined(__riscv) || defined (__loongarch64)
+ 
+ #define efi_call_0(func)		func()
+ #define efi_call_1(func, a)		func(a)
+diff --git a/include/grub/efi/efi.h b/include/grub/efi/efi.h
+index 8dfc89a..c816359 100644
+--- a/include/grub/efi/efi.h
++++ b/include/grub/efi/efi.h
+@@ -135,13 +135,17 @@ extern void (*EXPORT_VAR(grub_efi_net_config)) (grub_efi_handle_t hnd,
+ 						char **device,
+ 						char **path);
+ 
+-#if defined(__arm__) || defined(__aarch64__) || defined(__riscv)
++#if defined(__arm__) || defined(__aarch64__) || defined(__riscv) || defined(__loongarch__)
+ void *EXPORT_FUNC(grub_efi_get_firmware_fdt)(void);
+ grub_err_t EXPORT_FUNC(grub_efi_get_ram_base)(grub_addr_t *);
+ #include <grub/cpu/linux.h>
+ grub_err_t grub_arch_efi_linux_check_image(struct linux_arch_kernel_header *lh);
++#if defined(__loongarch__)
++grub_err_t grub_arch_efi_linux_boot_image(grub_addr_t addr, grub_size_t size, char *args);
++#else
+ grub_err_t grub_arch_efi_linux_boot_image(grub_addr_t addr, char *args);
+ #endif
++#endif
+ 
+ grub_addr_t grub_efi_section_addr (const char *section);
+ 
+diff --git a/include/grub/efi/pe32.h b/include/grub/efi/pe32.h
+index a43adf2..f8f2402 100644
+--- a/include/grub/efi/pe32.h
++++ b/include/grub/efi/pe32.h
+@@ -79,6 +79,8 @@ struct grub_pe32_coff_header
+ #define GRUB_PE32_MACHINE_ARM64			0xAA64
+ #define GRUB_PE32_MACHINE_RISCV32		0x5032
+ #define GRUB_PE32_MACHINE_RISCV64		0x5064
++#define GRUB_PE32_MACHINE_LOONGARCH32     0x6232
++#define GRUB_PE32_MACHINE_LOONGARCH64     0x6264
+ 
+ #define GRUB_PE32_RELOCS_STRIPPED		0x0001
+ #define GRUB_PE32_EXECUTABLE_IMAGE		0x0002
+@@ -338,6 +340,8 @@ struct grub_pe32_fixup_block
+ #define GRUB_PE32_REL_BASED_ARM_MOV32T  7
+ #define GRUB_PE32_REL_BASED_RISCV_LOW12I 7
+ #define GRUB_PE32_REL_BASED_RISCV_LOW12S 8
++#define GRUB_PE32_REL_BASED_LOONGARCH32_MARK_LA 8
++#define GRUB_PE32_REL_BASED_LOONGARCH64_MARK_LA 8
+ #define GRUB_PE32_REL_BASED_IA64_IMM64	9
+ #define GRUB_PE32_REL_BASED_DIR64	10
+ #define GRUB_PE32_REL_BASED_HIGH3ADJ	11
+diff --git a/include/grub/elf.h b/include/grub/elf.h
+index c478933..73175bd 100644
+--- a/include/grub/elf.h
++++ b/include/grub/elf.h
+@@ -248,6 +248,7 @@ typedef struct
+ #define EM_NUM		95
+ #define EM_AARCH64	183		/* ARM 64-bit architecture */
+ #define EM_RISCV	243		/* RISC-V */
++#define EM_LOONGARCH	258		/* LoongArch */
+ 
+ /* If it is necessary to assign new unofficial EM_* values, please
+    pick large random numbers (0x8523, 0xa7f2, etc.) to minimize the
+@@ -2531,6 +2532,35 @@ typedef Elf32_Addr Elf32_Conflict;
+ #define R_RISCV_SET32           56
+ #define R_RISCV_32_PCREL        57
+ 
++/* LoongArch relocations */
++#define R_LARCH_NONE                         0
++#define R_LARCH_64                           2
++#define R_LARCH_MARK_LA                      20
++#define R_LARCH_SOP_PUSH_PCREL               22
++#define R_LARCH_SOP_PUSH_ABSOLUTE            23
++#define R_LARCH_SOP_PUSH_PLT_PCREL           29
++#define R_LARCH_SOP_SUB                      32
++#define R_LARCH_SOP_SL                       33
++#define R_LARCH_SOP_SR                       34
++#define R_LARCH_SOP_ADD                      35
++#define R_LARCH_SOP_AND                      36
++#define R_LARCH_SOP_IF_ELSE                  37
++#define R_LARCH_SOP_POP_32_S_10_5            38
++#define R_LARCH_SOP_POP_32_U_10_12           39
++#define R_LARCH_SOP_POP_32_S_10_12           40
++#define R_LARCH_SOP_POP_32_S_10_16           41
++#define R_LARCH_SOP_POP_32_S_10_16_S2        42
++#define R_LARCH_SOP_POP_32_S_5_20            43
++#define R_LARCH_SOP_POP_32_S_0_5_10_16_S2    44
++#define R_LARCH_SOP_POP_32_S_0_10_10_16_S2   45
++#define R_LARCH_B26                          66
++#define R_LARCH_ABS_HI20                     67
++#define R_LARCH_ABS_LO12                     68
++#define R_LARCH_ABS64_LO20                   69
++#define R_LARCH_ABS64_HI12                   70
++#define R_LARCH_PCALA_HI20                   71
++#define R_LARCH_PCALA_LO12                   72
++
+ #ifdef GRUB_TARGET_WORDSIZE
+ #if GRUB_TARGET_WORDSIZE == 32
+ 
+diff --git a/include/grub/fdt.h b/include/grub/fdt.h
+index 3514aa4..ba2f9a9 100644
+--- a/include/grub/fdt.h
++++ b/include/grub/fdt.h
+@@ -20,7 +20,7 @@
+ #define GRUB_FDT_HEADER	1
+ 
+ #if !defined(GRUB_MACHINE_EMU) && \
+-    (defined(__arm__) || defined(__aarch64__) || defined(__riscv))
++    (defined(__arm__) || defined(__aarch64__) || defined(__riscv) || defined(__loongarch__))
+ 
+ #include <grub/types.h>
+ #include <grub/symbol.h>
+@@ -148,6 +148,6 @@ int EXPORT_FUNC(grub_fdt_set_prop) (void *fdt, unsigned int nodeoffset, const ch
+ })
+ 
+ #endif /* !defined(GRUB_MACHINE_EMU) && \
+-          (defined(__arm__) || defined(__aarch64__) || defined(__riscv)) */
++          (defined(__arm__) || defined(__aarch64__) || defined(__riscv) || defined(__loongarch__)) */
+ 
+ #endif	/* ! GRUB_FDT_HEADER */
+diff --git a/include/grub/loongarch64/efi/loader.h b/include/grub/loongarch64/efi/loader.h
+new file mode 100644
+index 0000000..71a0159
+--- /dev/null
++++ b/include/grub/loongarch64/efi/loader.h
+@@ -0,0 +1,25 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2002,2003,2004,2006,2007,2017  Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#ifndef GRUB_LOADER_MACHINE_HEADER
++#define GRUB_LOADER_MACHINE_HEADER	1
++
++#include <grub/types.h>
++#include <grub/symbol.h>
++
++#endif /* ! GRUB_LOADER_MACHINE_HEADER */
+diff --git a/include/grub/loongarch64/efi/memory.h b/include/grub/loongarch64/efi/memory.h
+new file mode 100644
+index 0000000..2d3f36e
+--- /dev/null
++++ b/include/grub/loongarch64/efi/memory.h
+@@ -0,0 +1,15 @@
++#ifndef GRUB_MEMORY_CPU_HEADER
++#include <grub/efi/memory.h>
++
++
++static inline grub_uint64_t grub_efi_max_usable_address(void)
++{
++  grub_uint64_t addr;
++  asm volatile ("csrrd %0, 0x181" : "=r" (addr));
++  return addr |= 0xffffffffffUL;
++}
++
++#define GRUB_EFI_MAX_USABLE_ADDRESS (grub_efi_max_usable_address())
++#define GRUB_EFI_MAX_ALLOCATION_ADDRESS GRUB_EFI_MAX_USABLE_ADDRESS
++
++#endif /* ! GRUB_MEMORY_CPU_HEADER */
+diff --git a/include/grub/loongarch64/efi/time.h b/include/grub/loongarch64/efi/time.h
+new file mode 100644
+index 0000000..e69de29
+diff --git a/include/grub/loongarch64/io.h b/include/grub/loongarch64/io.h
+new file mode 100644
+index 0000000..5f34103
+--- /dev/null
++++ b/include/grub/loongarch64/io.h
+@@ -0,0 +1,62 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2009,2017  Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#ifndef	GRUB_IO_H
++#define	GRUB_IO_H	1
++
++#include <grub/types.h>
++
++typedef grub_addr_t grub_port_t;
++
++static __inline unsigned char
++grub_inb (grub_port_t port)
++{
++  return *(volatile grub_uint8_t *) port;
++}
++
++static __inline unsigned short int
++grub_inw (grub_port_t port)
++{
++  return *(volatile grub_uint16_t *) port;
++}
++
++static __inline unsigned int
++grub_inl (grub_port_t port)
++{
++  return *(volatile grub_uint32_t *) port;
++}
++
++static __inline void
++grub_outb (unsigned char value, grub_port_t port)
++{
++  *(volatile grub_uint8_t *) port = value;
++}
++
++static __inline void
++grub_outw (unsigned short int value, grub_port_t port)
++{
++  *(volatile grub_uint16_t *) port = value;
++}
++
++static __inline void
++grub_outl (unsigned int value, grub_port_t port)
++{
++  *(volatile grub_uint32_t *) port = value;
++}
++
++#endif /* _SYS_IO_H */
+diff --git a/include/grub/loongarch64/linux.h b/include/grub/loongarch64/linux.h
+new file mode 100644
+index 0000000..af1f51d
+--- /dev/null
++++ b/include/grub/loongarch64/linux.h
+@@ -0,0 +1,144 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2021  Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#ifndef GRUB_LOONGARCH64_LINUX_HEADER
++#define GRUB_LOONGARCH64_LINUX_HEADER 1
++
++#include <grub/types.h>
++
++/* LoongArch linux kernel type */
++#define GRUB_LOONGARCH_LINUX_BAD 0
++#define GRUB_LOONGARCH_LINUX_ELF 1
++#define GRUB_LOONGARCH_LINUX_EFI 2
++
++#define GRUB_LOONGSON3_BOOT_MEM_MAP_MAX 128
++
++#define GRUB_LINUX_LOONGARCH_MAGIC_SIGNATURE  0x6E6F73676E6F6F4C /* 'Loongson' */
++#define linux_arch_kernel_header linux_loongarch64_kernel_header
++
++/* From linux/Documentation/loongarch/booting.txt
++ *
++ * 0-1: MZ
++ * 0x28: LoongArch\0
++ * 0x3c: PE/COFF头偏移
++ * 0x20e:内核版本号偏移-512
++ * riscv的version字段在0x20偏移处，现在LoongArch没有使用，是0
++ */
++struct linux_loongarch64_kernel_header
++{
++  grub_uint32_t code0;		/* Executable code */
++  grub_uint32_t code1;		/* Executable code */
++  grub_uint64_t text_offset;	/* Image load offset */
++  grub_uint64_t res0;		/* reserved */
++  grub_uint64_t res1;		/* reserved */
++  grub_uint64_t res2;		/* reserved */
++  grub_uint64_t magic;		/* Magic number, little endian, "Loongson" */
++  grub_uint64_t res3;		/* reserved */
++  grub_uint32_t res4;		/* reserved */
++  grub_uint32_t hdr_offset;	/* Offset of PE/COFF header */
++};
++
++struct linux_loongarch64_kernel_params
++{
++  grub_addr_t kernel_addr; 	/* kernel entry address */
++  grub_size_t kernel_size;	/* kernel size */
++  grub_addr_t ramdisk_addr;	/* initrd load address */
++  grub_size_t ramdisk_size;	/* initrd size */
++  int         linux_argc;	/* cmdline parameters number*/
++  grub_addr_t linux_argv;	/* cmdline parameters address*/
++  void*       linux_args;
++  void*       fdt;
++};
++
++#include <grub/efi/efi.h>
++#include <grub/elfload.h>
++
++#define GRUB_EFI_MAX_PHY_ADDRESS 0xffffffffffffULL
++#define ELF32_LOADMASK (0xf0000000UL)
++#define ELF64_LOADMASK (0xf000000000000000ULL)
++#define FLAGS_EFI_SUPPORT_BIT 0
++
++#define FDT_ADDR_CELLS_STRING "#address-cells"
++#define FDT_SIZE_CELLS_STRING "#size-cells"
++#define FDT_ADDR_SIZE_EXTRA ((2 * grub_fdt_prop_entry_size (sizeof(grub_uint32_t))) + \
++                             sizeof (FDT_ADDR_CELLS_STRING) + \
++                             sizeof (FDT_SIZE_CELLS_STRING))
++
++/* From arch/loongarch/include/asm/mach-loongson64/boot_param.h */
++struct _extention_list_hdr {
++    grub_uint64_t		signature;
++    grub_uint32_t  		length;
++    grub_uint8_t   		revision;
++    grub_uint8_t   		checksum;
++	union {
++      struct  _extention_list_hdr *next;
++      grub_uint64_t  next_offset;
++    };
++
++} GRUB_PACKED;
++
++struct boot_params_interface {
++    grub_uint64_t		signature;  /* {"B", "P", "I", "0", "1", ... } */
++    grub_efi_system_table_t *systemtable;
++    union {
++      struct _extention_list_hdr	*extlist;
++      grub_uint64_t  extlist_offset;
++    };
++    grub_uint64_t flags;
++}GRUB_PACKED;
++
++struct loongsonlist_mem_map {
++    struct _extention_list_hdr	header;	/* {"M", "E", "M"} */
++    grub_uint8_t  map_count;
++    struct memmap {
++	grub_uint32_t mem_type;
++	grub_uint64_t mem_start;
++	grub_uint64_t mem_size;
++    } GRUB_PACKED map[GRUB_LOONGSON3_BOOT_MEM_MAP_MAX];
++}GRUB_PACKED;
++
++grub_err_t
++finalize_efi_params_linux (struct linux_loongarch64_kernel_params *kernel_params);
++
++grub_err_t
++grub_linux_loongarch_elf_linux_boot_image (struct linux_loongarch64_kernel_params
++					   *kernel_params);
++
++void*
++grub_linux_loongarch_alloc_virtual_mem_addr (grub_addr_t addr,
++					     grub_size_t size,
++					     grub_err_t *err);
++
++void*
++grub_linux_loongarch_alloc_virtual_mem_align (grub_size_t size,
++					      grub_size_t align,
++					      grub_err_t *err);
++
++void
++grub_linux_loongarch_elf_relocator_unload (void);
++
++int
++grub_linux_loongarch_elf_get_boot_params (struct boot_params_interface **boot_params);
++
++grub_err_t
++grub_linux_loongarch_elf_boot_params (struct boot_params_interface *boot_params);
++
++grub_err_t
++grub_linux_loongarch_elf_load_kernel (grub_elf_t elf, const char *filename);
++
++#endif /* ! GRUB_LOONGARCH64_LINUX_HEADER */
+diff --git a/include/grub/loongarch64/loongarch64.h b/include/grub/loongarch64/loongarch64.h
+new file mode 100644
+index 0000000..ea3be3d
+--- /dev/null
++++ b/include/grub/loongarch64/loongarch64.h
+@@ -0,0 +1,30 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2010,2017  Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#ifndef GRUB_REGISTERS_CPU_HEADER
++#define GRUB_REGISTERS_CPU_HEADER	1
++
++#ifdef ASM_FILE
++#define GRUB_CPU_REGISTER_WRAP(x) x
++#else
++#define GRUB_CPU_REGISTER_WRAP(x) #x
++#endif
++
++#define GRUB_CPU_LOONGARCH_COP0_TIMER_COUNT GRUB_CPU_REGISTER_WRAP(9)
++
++#endif
+diff --git a/include/grub/loongarch64/memory.h b/include/grub/loongarch64/memory.h
+new file mode 100644
+index 0000000..cc9faef
+--- /dev/null
++++ b/include/grub/loongarch64/memory.h
+@@ -0,0 +1,59 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2017 Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#ifndef GRUB_MEMORY_CPU_HEADER
++#define GRUB_MEMORY_CPU_HEADER	1
++
++#ifndef ASM_FILE
++#include <grub/symbol.h>
++#include <grub/err.h>
++#include <grub/types.h>
++#endif
++
++#ifndef ASM_FILE
++
++typedef grub_addr_t grub_phys_addr_t;
++
++static inline grub_phys_addr_t
++grub_vtop (void *a)
++{
++  if (-1 == ((grub_int64_t) a >> 32))
++    return ((grub_phys_addr_t) a) & 0x1fffffffUL;
++  return ((grub_phys_addr_t) a) & 0xffffffffffffUL;
++}
++
++static inline void *
++grub_map_memory (grub_phys_addr_t a, grub_size_t size)
++{
++  grub_uint64_t addr;
++  asm volatile ("csrrd %0, 0x181" : "=r" (addr));
++  if (addr & 0x1)
++    return (void *) (a | (addr & 0xffffffffffffff00UL));
++  else
++	return (void *) a;
++}
++
++static inline void
++grub_unmap_memory (void *a __attribute__ ((unused)),
++		   grub_size_t size __attribute__ ((unused)))
++{
++}
++
++#endif
++
++#endif
+diff --git a/include/grub/loongarch64/reloc.h b/include/grub/loongarch64/reloc.h
+new file mode 100644
+index 0000000..2106ba2
+--- /dev/null
++++ b/include/grub/loongarch64/reloc.h
+@@ -0,0 +1,113 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2022 Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#ifndef GRUB_LOONGARCH64_RELOC_H
++#define GRUB_LOONGARCH64_RELOC_H 1
++#include <grub/types.h>
++
++#define LOONGARCH64_STACK_MAX 16
++
++struct grub_loongarch64_stack
++{
++  grub_uint64_t data[LOONGARCH64_STACK_MAX];
++  int count;
++  int top;
++};
++
++typedef struct grub_loongarch64_stack* grub_loongarch64_stack_t;
++
++void grub_loongarch64_stack_init	     (grub_loongarch64_stack_t stack);
++void grub_loongarch64_sop_push		     (grub_loongarch64_stack_t stack,
++					      grub_int64_t offset);
++void grub_loongarch64_sop_sub		     (grub_loongarch64_stack_t stack);
++void grub_loongarch64_sop_sl		     (grub_loongarch64_stack_t stack);
++void grub_loongarch64_sop_sr		     (grub_loongarch64_stack_t stack);
++void grub_loongarch64_sop_add		     (grub_loongarch64_stack_t stack);
++void grub_loongarch64_sop_and		     (grub_loongarch64_stack_t stack);
++void grub_loongarch64_sop_if_else	     (grub_loongarch64_stack_t stack);
++void grub_loongarch64_sop_32_s_10_5	     (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++void grub_loongarch64_sop_32_u_10_12	     (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++void grub_loongarch64_sop_32_s_10_12	     (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++void grub_loongarch64_sop_32_s_10_16	     (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++void grub_loongarch64_sop_32_s_10_16_s2	     (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++void grub_loongarch64_sop_32_s_5_20	     (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++void grub_loongarch64_sop_32_s_0_5_10_16_s2  (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++void grub_loongarch64_sop_32_s_0_10_10_16_s2 (grub_loongarch64_stack_t stack,
++					      grub_uint64_t *place);
++
++void grub_loongarch64_b26	  (grub_uint32_t *place, grub_int64_t offset);
++void grub_loongarch64_xxx_hi20	  (grub_uint32_t *place, grub_int64_t offset);
++void grub_loongarch64_xxx_lo12	  (grub_uint32_t *place, grub_int64_t offset);
++void grub_loongarch64_xxx64_hi12  (grub_uint32_t *place, grub_int64_t offset);
++void grub_loongarch64_xxx64_lo20  (grub_uint32_t *place, grub_int64_t offset);
++
++#define GRUB_LOONGARCH64_RELOCATION(STACK, PLACE, OFFSET)	\
++  case R_LARCH_SOP_PUSH_ABSOLUTE:				\
++    grub_loongarch64_sop_push (STACK, OFFSET);			\
++    break;							\
++  case R_LARCH_SOP_SUB:						\
++    grub_loongarch64_sop_sub (STACK);				\
++    break;							\
++  case R_LARCH_SOP_SL:						\
++    grub_loongarch64_sop_sl (STACK);				\
++    break;							\
++  case R_LARCH_SOP_SR:						\
++    grub_loongarch64_sop_sr (STACK);				\
++    break;							\
++  case R_LARCH_SOP_ADD:						\
++    grub_loongarch64_sop_add (STACK);				\
++    break;							\
++  case R_LARCH_SOP_AND:						\
++    grub_loongarch64_sop_and (STACK);				\
++    break;							\
++  case R_LARCH_SOP_IF_ELSE:					\
++    grub_loongarch64_sop_if_else (STACK);			\
++    break;							\
++  case R_LARCH_SOP_POP_32_S_10_5:				\
++    grub_loongarch64_sop_32_s_10_5 (STACK, PLACE);		\
++    break;							\
++  case R_LARCH_SOP_POP_32_U_10_12:				\
++    grub_loongarch64_sop_32_u_10_12 (STACK, PLACE);		\
++    break;							\
++  case R_LARCH_SOP_POP_32_S_10_12:				\
++    grub_loongarch64_sop_32_s_10_12 (STACK, PLACE);		\
++    break;							\
++  case R_LARCH_SOP_POP_32_S_10_16:				\
++    grub_loongarch64_sop_32_s_10_16 (STACK, PLACE);		\
++    break;							\
++  case R_LARCH_SOP_POP_32_S_10_16_S2:				\
++    grub_loongarch64_sop_32_s_10_16_s2 (STACK, PLACE);		\
++    break;							\
++  case R_LARCH_SOP_POP_32_S_5_20:				\
++    grub_loongarch64_sop_32_s_5_20 (STACK, PLACE);		\
++    break;							\
++  case R_LARCH_SOP_POP_32_S_0_5_10_16_S2:			\
++    grub_loongarch64_sop_32_s_0_5_10_16_s2 (STACK, PLACE);	\
++    break;							\
++  case R_LARCH_SOP_POP_32_S_0_10_10_16_S2:			\
++    grub_loongarch64_sop_32_s_0_10_10_16_s2 (STACK, PLACE);	\
++    break;
++
++#endif /* GRUB_LOONGARCH64_RELOC_H */
+diff --git a/include/grub/loongarch64/relocator.h b/include/grub/loongarch64/relocator.h
+new file mode 100644
+index 0000000..cef3aaa
+--- /dev/null
++++ b/include/grub/loongarch64/relocator.h
+@@ -0,0 +1,38 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2022  Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#ifndef GRUB_RELOCATOR_CPU_HEADER
++#define GRUB_RELOCATOR_CPU_HEADER	1
++
++#include <grub/types.h>
++#include <grub/err.h>
++#include <grub/relocator.h>
++
++struct grub_relocator64_state
++{
++  /* gpr[0] is ignored since it's hardwired to 0.  */
++  grub_uint64_t gpr[32];
++  /* Register holding target $pc.  */
++  int jumpreg;
++};
++
++grub_err_t
++grub_relocator64_boot (struct grub_relocator *rel,
++		       struct grub_relocator64_state state);
++
++#endif /* ! GRUB_RELOCATOR_CPU_HEADER */
+diff --git a/include/grub/loongarch64/setjmp.h b/include/grub/loongarch64/setjmp.h
+new file mode 100644
+index 0000000..d9a0776
+--- /dev/null
++++ b/include/grub/loongarch64/setjmp.h
+@@ -0,0 +1,27 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2002,2004,2006,2007,2009,2017  Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#ifndef GRUB_SETJMP_CPU_HEADER
++#define GRUB_SETJMP_CPU_HEADER	1
++
++typedef grub_uint64_t grub_jmp_buf[12];
++
++int grub_setjmp (grub_jmp_buf env) RETURNS_TWICE;
++void grub_longjmp (grub_jmp_buf env, int val) __attribute__ ((noreturn));
++
++#endif /* ! GRUB_SETJMP_CPU_HEADER */
+diff --git a/include/grub/loongarch64/time.h b/include/grub/loongarch64/time.h
+new file mode 100644
+index 0000000..c9a7334
+--- /dev/null
++++ b/include/grub/loongarch64/time.h
+@@ -0,0 +1,39 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2003,2004,2005,2007,2017  Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#ifndef KERNEL_CPU_TIME_HEADER
++#define KERNEL_CPU_TIME_HEADER	1
++
++#ifndef GRUB_UTIL
++
++#define GRUB_TICKS_PER_SECOND	(grub_arch_cpuclock / 2)
++
++void grub_timer_init (grub_uint32_t cpuclock);
++
++/* Return the real time in ticks.  */
++grub_uint64_t grub_get_rtc (void);
++
++extern grub_uint32_t grub_arch_cpuclock;
++#endif
++
++static inline void
++grub_cpu_idle(void)
++{
++}
++
++#endif
+diff --git a/include/grub/loongarch64/types.h b/include/grub/loongarch64/types.h
+new file mode 100644
+index 0000000..2dbefbf
+--- /dev/null
++++ b/include/grub/loongarch64/types.h
+@@ -0,0 +1,34 @@
++/*
++ *  GRUB  --  GRand Unified Bootloader
++ *  Copyright (C) 2002,2006,2007,2009,2017  Free Software Foundation, Inc.
++ *
++ *  GRUB is free software: you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation, either version 3 of the License, or
++ *  (at your option) any later version.
++ *
++ *  GRUB is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#ifndef GRUB_TYPES_CPU_HEADER
++#define GRUB_TYPES_CPU_HEADER	1
++
++/* The size of void *.  */
++#define GRUB_TARGET_SIZEOF_VOID_P	8
++
++/* The size of long.  */
++#define GRUB_TARGET_SIZEOF_LONG	8
++
++#ifdef GRUB_CPU_LOONGARCH
++/* loongarch is little-endian.  */
++#undef GRUB_TARGET_WORDS_BIGENDIAN
++
++#endif /* ! GRUB_TYPES_CPU_HEADER */
++
++#endif
+diff --git a/include/grub/util/install.h b/include/grub/util/install.h
+index 51f3b13..a728afc 100644
+--- a/include/grub/util/install.h
++++ b/include/grub/util/install.h
+@@ -114,6 +114,7 @@ enum grub_install_plat
+     GRUB_INSTALL_PLATFORM_ARM_COREBOOT,
+     GRUB_INSTALL_PLATFORM_RISCV32_EFI,
+     GRUB_INSTALL_PLATFORM_RISCV64_EFI,
++    GRUB_INSTALL_PLATFORM_LOONGARCH64_EFI,
+     GRUB_INSTALL_PLATFORM_MAX
+   };
+ 
+diff --git a/util/grub-install-common.c b/util/grub-install-common.c
+index 4833407..60d2c00 100644
+--- a/util/grub-install-common.c
++++ b/util/grub-install-common.c
+@@ -939,6 +939,7 @@ static struct
+     [GRUB_INSTALL_PLATFORM_ARM_COREBOOT] =     { "arm",     "coreboot"  },
+     [GRUB_INSTALL_PLATFORM_RISCV32_EFI] =      { "riscv32", "efi"       },
+     [GRUB_INSTALL_PLATFORM_RISCV64_EFI] =      { "riscv64", "efi"       },
++    [GRUB_INSTALL_PLATFORM_LOONGARCH64_EFI] =  { "loongarch64", "efi"   },
+   }; 
+ 
+ char *
+diff --git a/util/grub-install.c b/util/grub-install.c
+index 5babc7a..c8f15df 100644
+--- a/util/grub-install.c
++++ b/util/grub-install.c
+@@ -332,6 +332,8 @@ get_default_platform (void)
+ #else
+    return NULL;
+ #endif
++#elif defined (__loongarch64)
++  return "loongarch64-efi";
+ #else
+    return NULL;
+ #endif
+@@ -487,6 +489,7 @@ have_bootdev (enum grub_install_plat pl)
+     case GRUB_INSTALL_PLATFORM_ARM64_EFI:
+     case GRUB_INSTALL_PLATFORM_RISCV32_EFI:
+     case GRUB_INSTALL_PLATFORM_RISCV64_EFI:
++    case GRUB_INSTALL_PLATFORM_LOONGARCH64_EFI:
+     case GRUB_INSTALL_PLATFORM_I386_IEEE1275:
+     case GRUB_INSTALL_PLATFORM_SPARC64_IEEE1275:
+     case GRUB_INSTALL_PLATFORM_POWERPC_IEEE1275:
+@@ -906,6 +909,7 @@ main (int argc, char *argv[])
+     case GRUB_INSTALL_PLATFORM_I386_EFI:
+     case GRUB_INSTALL_PLATFORM_IA64_EFI:
+     case GRUB_INSTALL_PLATFORM_X86_64_EFI:
++    case GRUB_INSTALL_PLATFORM_LOONGARCH64_EFI:
+       is_efi = 1;
+       grub_util_error (_("this utility cannot be used for EFI platforms"
+                          " because it does not support UEFI Secure Boot"));
+@@ -933,6 +937,7 @@ main (int argc, char *argv[])
+     case GRUB_INSTALL_PLATFORM_ARM64_EFI:
+     case GRUB_INSTALL_PLATFORM_RISCV32_EFI:
+     case GRUB_INSTALL_PLATFORM_RISCV64_EFI:
++    case GRUB_INSTALL_PLATFORM_LOONGARCH64_EFI:
+     case GRUB_INSTALL_PLATFORM_IA64_EFI:
+     case GRUB_INSTALL_PLATFORM_I386_IEEE1275:
+     case GRUB_INSTALL_PLATFORM_SPARC64_IEEE1275:
+@@ -980,6 +985,7 @@ main (int argc, char *argv[])
+     case GRUB_INSTALL_PLATFORM_ARM64_EFI:
+     case GRUB_INSTALL_PLATFORM_RISCV32_EFI:
+     case GRUB_INSTALL_PLATFORM_RISCV64_EFI:
++    case GRUB_INSTALL_PLATFORM_LOONGARCH64_EFI:
+     case GRUB_INSTALL_PLATFORM_IA64_EFI:
+     case GRUB_INSTALL_PLATFORM_I386_IEEE1275:
+     case GRUB_INSTALL_PLATFORM_ARM_UBOOT:
+@@ -1133,6 +1139,9 @@ main (int argc, char *argv[])
+ 	    case GRUB_INSTALL_PLATFORM_RISCV64_EFI:
+ 	      efi_file = "BOOTRISCV64.EFI";
+ 	      break;
++            case GRUB_INSTALL_PLATFORM_LOONGARCH64_EFI:
++              efi_file = "BOOTLOONGARCH64.EFI";
++              break;
+ 	    default:
+ 	      grub_util_error ("%s", _("You've found a bug"));
+ 	      break;
+@@ -1166,6 +1175,9 @@ main (int argc, char *argv[])
+ 	    case GRUB_INSTALL_PLATFORM_RISCV64_EFI:
+ 	      efi_file = "grubriscv64.efi";
+ 	      break;
++           case GRUB_INSTALL_PLATFORM_LOONGARCH64_EFI:
++             efi_file = "grubloongarch64.efi";
++             break;
+ 	    default:
+ 	      efi_file = "grub.efi";
+ 	      break;
+@@ -1470,6 +1482,7 @@ main (int argc, char *argv[])
+ 		  case GRUB_INSTALL_PLATFORM_ARM64_EFI:
+ 		  case GRUB_INSTALL_PLATFORM_RISCV32_EFI:
+ 		  case GRUB_INSTALL_PLATFORM_RISCV64_EFI:
++		  case GRUB_INSTALL_PLATFORM_LOONGARCH64_EFI:
+ 		  case GRUB_INSTALL_PLATFORM_IA64_EFI:
+ 		    g = grub_util_guess_efi_drive (*curdev);
+ 		    break;
+@@ -1614,6 +1627,7 @@ main (int argc, char *argv[])
+     case GRUB_INSTALL_PLATFORM_ARM64_EFI:
+     case GRUB_INSTALL_PLATFORM_RISCV32_EFI:
+     case GRUB_INSTALL_PLATFORM_RISCV64_EFI:
++    case GRUB_INSTALL_PLATFORM_LOONGARCH64_EFI:
+     case GRUB_INSTALL_PLATFORM_IA64_EFI:
+       core_name = "core.efi";
+       snprintf (mkimage_target, sizeof (mkimage_target),
+@@ -1719,6 +1733,7 @@ main (int argc, char *argv[])
+     case GRUB_INSTALL_PLATFORM_ARM64_EFI:
+     case GRUB_INSTALL_PLATFORM_RISCV32_EFI:
+     case GRUB_INSTALL_PLATFORM_RISCV64_EFI:
++    case GRUB_INSTALL_PLATFORM_LOONGARCH64_EFI:
+     case GRUB_INSTALL_PLATFORM_IA64_EFI:
+     case GRUB_INSTALL_PLATFORM_MIPSEL_QEMU_MIPS:
+     case GRUB_INSTALL_PLATFORM_MIPS_QEMU_MIPS:
+@@ -1973,6 +1988,7 @@ main (int argc, char *argv[])
+     case GRUB_INSTALL_PLATFORM_ARM64_EFI:
+     case GRUB_INSTALL_PLATFORM_RISCV32_EFI:
+     case GRUB_INSTALL_PLATFORM_RISCV64_EFI:
++    case GRUB_INSTALL_PLATFORM_LOONGARCH64_EFI:
+     case GRUB_INSTALL_PLATFORM_IA64_EFI:
+       {
+ 	char *dst = grub_util_path_concat (2, efidir, efi_file);
+diff --git a/util/grub-mkimagexx.c b/util/grub-mkimagexx.c
+index 3931194..cf582a9 100644
+--- a/util/grub-mkimagexx.c
++++ b/util/grub-mkimagexx.c
+@@ -44,6 +44,7 @@
+ #include <grub/arm/reloc.h>
+ #include <grub/arm64/reloc.h>
+ #include <grub/ia64/reloc.h>
++#include <grub/loongarch64/reloc.h>
+ #include <grub/osdep/hostfile.h>
+ #include <grub/util/install.h>
+ #include <grub/util/mkimage.h>
+@@ -1160,7 +1161,60 @@ SUFFIX (relocate_addrs) (Elf_Ehdr *e, struct section_metadata *smd,
+ 		   }
+ 	       break;
+ 	       }
+-#endif
++	     case EM_LOONGARCH:
++	       {
++	       grub_int64_t pc;
++	       grub_uint32_t *t32 = (grub_uint32_t *) target;
++
++	       sym_addr += addend;
++	       pc = offset + target_section_addr + image_target->vaddr_offset;
++
++	       switch (ELF_R_TYPE (info))
++	   {
++	   case R_LARCH_64:
++	     {
++	       grub_uint64_t *t64 = (grub_uint64_t *) target;
++	       *t64 = grub_host_to_target64 (grub_target_to_host64 (*t64) + sym_addr);
++	     }
++	     break;
++	   case R_LARCH_MARK_LA:
++	     break;
++	   case R_LARCH_B26:
++	     {
++	       grub_int64_t off;
++	       off = sym_addr - target_section_addr - offset
++	               - image_target->vaddr_offset;
++	       grub_loongarch64_b26 (t32, off);
++	     }
++	     break;
++	   case R_LARCH_ABS_HI20:
++	     grub_loongarch64_xxx_hi20 (t32, sym_addr);
++	     break;
++	   case R_LARCH_ABS64_LO20:
++	     grub_loongarch64_xxx64_lo20 (t32, sym_addr);
++	     break;
++	   case R_LARCH_ABS64_HI12:
++	     grub_loongarch64_xxx64_hi12 (t32, sym_addr);
++	     break;
++	   case R_LARCH_PCALA_HI20:
++	     {
++	       grub_int32_t hi20;
++	       hi20 = (((sym_addr + 0x800) & ~0xfffULL) - (pc & ~0xfffULL));
++	       grub_loongarch64_xxx_hi20 (t32, hi20);
++	     }
++	     break;
++	   case R_LARCH_ABS_LO12:
++	   case R_LARCH_PCALA_LO12:
++	     grub_loongarch64_xxx_lo12 (t32, sym_addr);
++	     break;
++	   default:
++	     grub_util_error (_("relocation 0x%x is not implemented yet"),
++	                       (unsigned int) ELF_R_TYPE (info));
++	     break;
++	   }
++	       break;
++	       }
++#endif /* defined(MKIMAGE_ELF64) */
+ #if defined(MKIMAGE_ELF32)
+ 	     case EM_ARM:
+ 	       {
+@@ -1538,7 +1592,10 @@ add_fixup_entry (struct fixup_block_list **cblock, grub_uint16_t type,
+ 
+ 	  /* The spec does not mention the requirement of a Page RVA.
+ 	     Here, align the address with a 4K boundary for safety.  */
+-	  b->page_rva = (addr & ~(0x1000 - 1));
++#ifdef GRUB_CPU_LOONGARCH64
++          if (type)
++#endif
++	    b->page_rva = (addr & ~(0x1000 - 1));
+ 	  b->block_size = sizeof (*b);
+ 	}
+ 
+@@ -1548,7 +1605,11 @@ add_fixup_entry (struct fixup_block_list **cblock, grub_uint16_t type,
+ 
+       /* Add a new entry.  */
+       cur_index = ((b->block_size - sizeof (*b)) >> 1);
++#ifdef GRUB_CPU_LOONGARCH64
++      entry = GRUB_PE32_FIXUP_ENTRY (type, type ? (addr - b->page_rva) : addr);
++#else
+       entry = GRUB_PE32_FIXUP_ENTRY (type, addr - b->page_rva);
++#endif
+       b->entries[cur_index] = grub_host_to_target16 (entry);
+       b->block_size += 2;
+     }
+@@ -1704,7 +1765,39 @@ translate_relocation_pe (struct translate_context *ctx,
+ 	  break;
+ 	}
+       break;
+-      break;
++#if defined(MKIMAGE_ELF64)
++	  case EM_LOONGARCH:
++	    switch (ELF_R_TYPE (info))
++	{
++	case R_LARCH_64:
++	  ctx->current_address = add_fixup_entry (&ctx->lst,
++	              GRUB_PE32_REL_BASED_DIR64, addr, 0,
++	              ctx->current_address, image_target);
++	  break;
++	case R_LARCH_MARK_LA:
++	  ctx->current_address = add_fixup_entry (&ctx->lst,
++	              GRUB_PE32_REL_BASED_LOONGARCH64_MARK_LA,
++	              addr, 0, ctx->current_address, image_target);
++	  break;
++	  /* Relative relocations do not require fixup entries. */
++	case R_LARCH_B26:
++	case R_LARCH_ABS_HI20:
++	case R_LARCH_ABS_LO12:
++	case R_LARCH_ABS64_LO20:
++	case R_LARCH_ABS64_HI12:
++	case R_LARCH_PCALA_HI20:
++	case R_LARCH_PCALA_LO12:
++	  grub_util_info ("  %s:  not adding fixup: 0x%08x : 0x%08x",
++	                  __FUNCTION__, (unsigned int) addr,
++	                  (unsigned int) ctx->current_address);
++	  break;
++	default:
++	  grub_util_error (_("relocation 0x%x is not implemented yet"),
++	                    (unsigned int) ELF_R_TYPE (info));
++	  break;
++	}
++	    break;
++#endif /* defined(MKIMAGE_ELF64) */
+ #if defined(MKIMAGE_ELF32)
+     case EM_ARM:
+       switch (ELF_R_TYPE (info))
+diff --git a/util/grub-module-verifier.c b/util/grub-module-verifier.c
+index 163529c..071d1c3 100644
+--- a/util/grub-module-verifier.c
++++ b/util/grub-module-verifier.c
+@@ -176,6 +176,21 @@ struct grub_module_verifier_arch archs[] = {
+       -1
+     }
+   },
++  { "loongarch64", 8, 0, EM_LOONGARCH, GRUB_MODULE_VERIFY_SUPPORTS_REL | GRUB_MODULE_VERIFY_SUPPORTS_RELA, (int[]){
++      R_LARCH_NONE,
++      R_LARCH_64,
++      R_LARCH_MARK_LA,
++      R_LARCH_B26,
++      R_LARCH_ABS_HI20,
++      R_LARCH_ABS_LO12,
++      R_LARCH_ABS64_LO20,
++      R_LARCH_ABS64_HI12,
++      R_LARCH_PCALA_HI20,
++      R_LARCH_PCALA_LO12,
++      -1
++    }, (int[]){
++      -1
++    } },
+ };
+ 
+ struct platform_whitelist {
+diff --git a/util/mkimage.c b/util/mkimage.c
+index 8319e8d..4e09dfc 100644
+--- a/util/mkimage.c
++++ b/util/mkimage.c
+@@ -654,6 +654,22 @@ static const struct grub_install_image_target_desc image_targets[] =
+       .pe_target = GRUB_PE32_MACHINE_RISCV64,
+       .elf_target = EM_RISCV,
+     },
++    {
++      .dirname = "loongarch64-efi",
++      .names = { "loongarch64-efi", NULL },
++      .voidp_sizeof = 8,
++      .bigendian = 0,
++      .id = IMAGE_EFI,
++      .flags = PLATFORM_FLAGS_NONE,
++      .total_module_size = TARGET_NO_FIELD,
++      .decompressor_compressed_size = TARGET_NO_FIELD,
++      .decompressor_uncompressed_size = TARGET_NO_FIELD,
++      .decompressor_uncompressed_addr = TARGET_NO_FIELD,
++      .section_align = GRUB_PE32_SECTION_ALIGNMENT,
++      .vaddr_offset = EFI64_HEADER_SIZE,
++      .pe_target = GRUB_PE32_MACHINE_LOONGARCH64,
++      .elf_target = EM_LOONGARCH,
++    },
+   };
+ 
+ #include <grub/lib/LzmaEnc.h>
+-- 
+2.33.0
+
