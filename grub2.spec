@@ -14,7 +14,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.06
-Release:	18
+Release:	19
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -439,6 +439,12 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Thu Feb 2 2023 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.06-19
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:disable some unsupported filesystems
+
 * Tue Jan 10 2023 mengyingkun <mengyingkun@loongson.cn> - 1:2.06-18
 - Type:bugfix
 - CVE:NA
