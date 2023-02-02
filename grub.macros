@@ -627,6 +627,9 @@ touch ${RPM_BUILD_ROOT}/boot/%{name}/grub.cfg			\
 %exclude %{_libdir}/grub/%{2}/*.module				\
 %exclude %{_libdir}/grub/%{2}/{boot,boot_hybrid,cdboot,diskboot,lzma_decompress,pxeboot}.image \
 %exclude %{_libdir}/grub/%{2}/*.o				\
+%exclude %{_libdir}/grub/%{2}/{affs,afs,bfs,jfs,nilfs2,reiserfs,romfs,sfs}.mod \
+%exclude %{_libdir}/grub/%{2}/minix*.mod			\
+%exclude %{_libdir}/grub/%{2}/ufs*.mod				\
 %else								\
 %%exclude %%{_libdir}/grub/%%{grublegacyarch}/*			\
 %endif}								\
@@ -653,6 +656,9 @@ touch ${RPM_BUILD_ROOT}/boot/%{name}/grub.cfg			\
 %dir %{_libdir}/grub/%{6}/					\
 %{_libdir}/grub/%{6}/*						\
 %exclude %{_libdir}/grub/%{6}/*.module				\
+%exclude %{_libdir}/grub/%{6}/{affs,afs,bfs,jfs,nilfs2,reiserfs,romfs,sfs}.mod \
+%exclude %{_libdir}/grub/%{6}/minix*.mod			\
+%exclude %{_libdir}/grub/%{6}/ufs*.mod				\
 %endif}								\
 								\
 %{expand:%%files %{1}-cdboot}					\

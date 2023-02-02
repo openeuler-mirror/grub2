@@ -1,0 +1,53 @@
+From 5d3654738c78291a2252eec2fdee9cd4b6c9c2f4 Mon Sep 17 00:00:00 2001
+From: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+Date: Thu, 2 Feb 2023 14:37:52 +0800
+Subject: [PATCH] disable some unsupported filesystems
+
+Signed-off-by: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+---
+ Makefile.util.def | 17 -----------------
+ 1 file changed, 17 deletions(-)
+
+diff --git a/Makefile.util.def b/Makefile.util.def
+index b7a6311..de156f9 100644
+--- a/Makefile.util.def
++++ b/Makefile.util.def
+@@ -95,9 +95,6 @@ library = {
+   common = grub-core/video/colors.c;
+   common = grub-core/unidata.c;
+   common = grub-core/io/bufio.c;
+-  common = grub-core/fs/affs.c;
+-  common = grub-core/fs/afs.c;
+-  common = grub-core/fs/bfs.c;
+   common = grub-core/fs/btrfs.c;
+   common = grub-core/fs/cbfs.c;
+   common = grub-core/fs/cpio.c;
+@@ -113,25 +110,11 @@ library = {
+   common = grub-core/fs/hfsplus.c;
+   common = grub-core/fs/hfspluscomp.c;
+   common = grub-core/fs/iso9660.c;
+-  common = grub-core/fs/jfs.c;
+-  common = grub-core/fs/minix.c;
+-  common = grub-core/fs/minix2.c;
+-  common = grub-core/fs/minix3.c;
+-  common = grub-core/fs/minix_be.c;
+-  common = grub-core/fs/minix2_be.c;
+-  common = grub-core/fs/minix3_be.c;
+-  common = grub-core/fs/nilfs2.c;
+   common = grub-core/fs/ntfs.c;
+   common = grub-core/fs/ntfscomp.c;
+-  common = grub-core/fs/reiserfs.c;
+-  common = grub-core/fs/romfs.c;
+-  common = grub-core/fs/sfs.c;
+   common = grub-core/fs/squash4.c;
+   common = grub-core/fs/tar.c;
+   common = grub-core/fs/udf.c;
+-  common = grub-core/fs/ufs2.c;
+-  common = grub-core/fs/ufs.c;
+-  common = grub-core/fs/ufs_be.c;
+   common = grub-core/fs/xfs.c;
+   common = grub-core/fs/zfs/zfscrypt.c;
+   common = grub-core/fs/zfs/zfs.c;
+-- 
+2.27.0
+
