@@ -1,0 +1,82 @@
+From 062741f3d9878bcbd4556f3bfe73d1bead458255 Mon Sep 17 00:00:00 2001
+From: mengyingkun <mengyingkun@loongson.cn>
+Date: Thu, 2 Feb 2023 20:32:17 +0800
+Subject: [PATCH] loongarch: Modify the location where initrd is loaded into
+ memory
+
+Try to allocate memory from higher than 256MB to
+avoid kernel relocation overlaying initrd. If failed,
+allocate memory in range 0~256MB, and high address
+takes precedence.
+
+Signed-off-by: mengyingkun <mengyingkun@loongson.cn>
+---
+ grub-core/loader/loongarch64/linux-elf.c | 21 +++++++++++++++++++++
+ grub-core/loader/loongarch64/linux.c     |  2 +-
+ include/grub/loongarch64/linux.h         |  5 +++++
+ 3 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/grub-core/loader/loongarch64/linux-elf.c b/grub-core/loader/loongarch64/linux-elf.c
+index 85585b4..8260e4c 100644
+--- a/grub-core/loader/loongarch64/linux-elf.c
++++ b/grub-core/loader/loongarch64/linux-elf.c
+@@ -304,6 +304,27 @@ grub_linux_loongarch_alloc_virtual_mem_align (grub_size_t size,
+   return get_virtual_current_address (ch);
+ }
+ 
++void*
++grub_linux_loongarch_alloc_initrd_mem_align (grub_size_t size,
++                 grub_size_t align,
++                 grub_err_t *err)
++{
++  grub_relocator_chunk_t ch;
++
++  /* Firstly try to allocate from memory higher than 256MB */
++  *err = grub_relocator_alloc_chunk_align (relocator, &ch,
++              0x10000000, (0xffffffff - size) + 1, size, align,
++              GRUB_RELOCATOR_PREFERENCE_LOW, 0);
++  if (*err != GRUB_ERR_NONE)
++    {
++      /* Failed, try to allocate in range 0 ~ 256MB */
++      *err = grub_relocator_alloc_chunk_align (relocator, &ch,
++                  0, (0xfffffff - size) + 1, size, align,
++                  GRUB_RELOCATOR_PREFERENCE_HIGH, 0);
++    }
++  return get_virtual_current_address (ch);
++}
++
+ int
+ grub_linux_loongarch_elf_get_boot_params (struct boot_params_interface **boot_params)
+ {
+diff --git a/grub-core/loader/loongarch64/linux.c b/grub-core/loader/loongarch64/linux.c
+index 783054b..4c02194 100644
+--- a/grub-core/loader/loongarch64/linux.c
++++ b/grub-core/loader/loongarch64/linux.c
+@@ -351,7 +351,7 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
+       initrd_mem = allocate_initrd_mem (initrd_pages);
+   } else {
+       grub_err_t err;
+-      initrd_mem = grub_linux_loongarch_alloc_virtual_mem_align (initrd_size, 0x10000, &err);
++      initrd_mem = grub_linux_loongarch_alloc_initrd_mem_align (initrd_size, 0x10000, &err);
+       if (err)
+ 	goto fail;
+   }
+diff --git a/include/grub/loongarch64/linux.h b/include/grub/loongarch64/linux.h
+index af1f51d..f4b198a 100644
+--- a/include/grub/loongarch64/linux.h
++++ b/include/grub/loongarch64/linux.h
+@@ -129,6 +129,11 @@ grub_linux_loongarch_alloc_virtual_mem_align (grub_size_t size,
+ 					      grub_size_t align,
+ 					      grub_err_t *err);
+ 
++void*
++grub_linux_loongarch_alloc_initrd_mem_align (grub_size_t size,
++                          grub_size_t align,
++                          grub_err_t *err);
++
+ void
+ grub_linux_loongarch_elf_relocator_unload (void);
+ 
+-- 
+2.33.0
+
