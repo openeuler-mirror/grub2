@@ -290,3 +290,6 @@ Patch0289: backport-normal-charset-Fix-an-integer-overflow-in-grub_unico.patch
 Patch0290: port-Add-LoongArch-support.patch
 %endif
 Patch0291: disable-some-unsupported-filesystems.patch
+%ifarch loongarch64
+Patch0292: loongarch-Modify-the-location-where-initrd-is-loaded.patch
+%endif
