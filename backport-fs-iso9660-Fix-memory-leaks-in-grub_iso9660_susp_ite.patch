@@ -1,0 +1,48 @@
+From 7338cbe91a24ee9639597a0d8bebc32b8b46c26c Mon Sep 17 00:00:00 2001
+From: "t.feng" <fengtao40@huawei.com>
+Date: Tue, 29 Nov 2022 17:14:13 +0800
+Subject: [PATCH] fs/iso9660: Fix memory leaks in grub_iso9660_susp_iterate()
+
+Fixes: 99373ce47 (* grub-core/fs/iso9660.c: Remove nested functions)
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=7338cbe91a24ee9639597a0d8bebc32b8b46c26c
+Conflict:NA
+
+Signed-off-by: t.feng <fengtao40@huawei.com>
+Reviewed-by: Thomas Schmitt <scdbackup@gmx.net>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/fs/iso9660.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/grub-core/fs/iso9660.c b/grub-core/fs/iso9660.c
+index 91817ec1f..df9f7783b 100644
+--- a/grub-core/fs/iso9660.c
++++ b/grub-core/fs/iso9660.c
+@@ -279,7 +279,10 @@ grub_iso9660_susp_iterate (grub_fshelp_node_t node, grub_off_t off,
+   /* Load a part of the System Usage Area.  */
+   err = read_node (node, off, sua_size, sua);
+   if (err)
+-    return err;
++    {
++      grub_free (sua);
++      return err;
++    }
+ 
+   for (entry = (struct grub_iso9660_susp_entry *) sua; (char *) entry < (char *) sua + sua_size - 1 && entry->len > 0;
+        entry = (struct grub_iso9660_susp_entry *)
+@@ -309,7 +312,10 @@ grub_iso9660_susp_iterate (grub_fshelp_node_t node, grub_off_t off,
+ 	  err = grub_disk_read (node->data->disk, ce_block, off,
+ 				sua_size, sua);
+ 	  if (err)
+-	    return err;
++	    {
++	      grub_free (sua);
++	      return err;
++	    }
+ 
+ 	  entry = (struct grub_iso9660_susp_entry *) sua;
+ 	}
+-- 
+2.28.0.windows.1
+
