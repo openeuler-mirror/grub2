@@ -1,0 +1,36 @@
+From 108a3865f43330b581d35b9cf6ecb1e0a1da5d49 Mon Sep 17 00:00:00 2001
+From: Ryan Cohen <rcohenprogramming@gmail.com>
+Date: Sat, 26 Nov 2022 17:22:51 -0500
+Subject: [PATCH] term/i386/pc/vga_text: Prevent out-of-bounds writes to VGA
+ text buffer
+
+Coordinates passed to screen_write_char() did not have any checks to
+ensure they are not out-of-bounds. This adds an if statement to prevent
+out-of-bounds writes to the VGA text buffer.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=108a3865f43330b581d35b9cf6ecb1e0a1da5d49
+Conflict:NA
+
+Signed-off-by: Ryan Cohen <rcohenprogramming@gmail.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/term/i386/pc/vga_text.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/grub-core/term/i386/pc/vga_text.c b/grub-core/term/i386/pc/vga_text.c
+index 669d06fad..b88fa9d2e 100644
+--- a/grub-core/term/i386/pc/vga_text.c
++++ b/grub-core/term/i386/pc/vga_text.c
+@@ -63,7 +63,8 @@ static grub_uint8_t cur_color = 0x7;
+ static void
+ screen_write_char (int x, int y, short c)
+ {
+-  VGA_TEXT_SCREEN[y * COLS + x] = grub_cpu_to_le16 (c);
++  if (x < COLS && y < ROWS && x >= 0 && y >= 0)
++    VGA_TEXT_SCREEN[y * COLS + x] = grub_cpu_to_le16 (c);
+ }
+ 
+ static short
+-- 
+2.28.0.windows.1
+

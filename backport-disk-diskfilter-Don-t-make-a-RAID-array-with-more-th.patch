@@ -1,0 +1,45 @@
+From 2a5e3c1f2aed88c2289fb595da8308e898b87915 Mon Sep 17 00:00:00 2001
+From: Daniel Axtens <dja@axtens.net>
+Date: Wed, 19 Oct 2022 20:23:22 +1100
+Subject: [PATCH] disk/diskfilter: Don't make a RAID array with more than 1024
+ disks
+
+This is "belt and braces" with commit 12e20a6a695f (disk/diskfilter:
+Check calloc() result for NULL): we end up trying to use too much memory
+in situations like corrupted Linux software RAID setups purporting to
+use a huge number of disks. Simply refuse to permit such configurations.
+
+1024 is a bit arbitrary, yes, and I feel a bit like I'm tempting fate
+here, but I think 1024 disks in an array (that GRUB has to read to boot!)
+should be enough for anyone.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=2a5e3c1f2aed88c2289fb595da8308e898b87915
+Conflict:NA
+
+Signed-off-by: Daniel Axtens <dja@axtens.net>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/disk/diskfilter.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/grub-core/disk/diskfilter.c b/grub-core/disk/diskfilter.c
+index 4ac50320e..1c568927b 100644
+--- a/grub-core/disk/diskfilter.c
++++ b/grub-core/disk/diskfilter.c
+@@ -1046,6 +1046,13 @@ grub_diskfilter_make_raid (grub_size_t uuidlen, char *uuid, int nmemb,
+   struct grub_diskfilter_pv *pv;
+   grub_err_t err;
+ 
++  /* We choose not to support more than 1024 disks. */
++  if (nmemb < 1 || nmemb > 1024)
++    {
++      grub_free (uuid);
++      return NULL;
++    }
++
+   switch (level)
+     {
+     case 1:
+-- 
+2.28.0.windows.1
+
