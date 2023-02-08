@@ -304,3 +304,6 @@ Patch0300: backport-kern-file-Fix-error-handling-in-grub_file_open.patch
 Patch0301: backport-fs-xfs-Fix-memory-leaks-in-XFS-module.patch
 Patch0302: backport-fs-squash4-Fix-memory-leaks-in-grub_squash_iterate_d.patch
 Patch0303: backport-fs-iso9660-Fix-memory-leaks-in-grub_iso9660_susp_ite.patch
+%ifarch loongarch64
+Patch0304: loongarch-Add-EFI-frame-buffer-support.patch
+%endif
