@@ -1,0 +1,337 @@
+From 1ebd229556ba767f76c829b6d00d8a7b5bf28e65 Mon Sep 17 00:00:00 2001
+From: mengyingkun <mengyingkun@loongson.cn>
+Date: Wed, 8 Feb 2023 09:24:05 +0800
+Subject: [PATCH] loongarch: Add EFI frame buffer support
+
+Signed-off-by: yangqiming <yangqiming@loongson.cn>
+Signed-off-by: mengyingkun <mengyingkun@loongson.cn>
+---
+ grub-core/loader/loongarch64/linux-elf.c | 232 +++++++++++++++++++++++
+ include/grub/loongarch64/linux.h         |  47 +++++
+ 2 files changed, 279 insertions(+)
+
+diff --git a/grub-core/loader/loongarch64/linux-elf.c b/grub-core/loader/loongarch64/linux-elf.c
+index 8260e4c..852e8f4 100644
+--- a/grub-core/loader/loongarch64/linux-elf.c
++++ b/grub-core/loader/loongarch64/linux-elf.c
+@@ -23,6 +23,7 @@
+ #include <grub/elfload.h>
+ #include <grub/cpu/relocator.h>
+ #include <grub/efi/memory.h>
++#include <grub/efi/graphics_output.h>
+ 
+ #define GRUB_ADDRESS_TYPE_SYSRAM	1
+ #define GRUB_ADDRESS_TYPE_RESERVED	2
+@@ -34,13 +35,242 @@
+ 	{ 0x89, 0x9a, 0x43, 0x18, 0x02, 0x50, 0xa0, 0xc9 } \
+     }
+ 
++#define GRUB_EFI_LARCH_SCREEN_INFO_GUID \
++  { 0x07fd51a6, 0x9532, 0x926f, \
++    { 0x51, 0xdc, 0x6a, 0x63, 0x60, 0x2f, 0x84, 0xb4 } \
++  }
++
++#define GRUB_EFI_LARCH_CONSOLE_OUT_DEVICE_GUID \
++  { 0xd3b36f2c, 0xd551, 0x11d4,  \
++    { 0x9a, 0x46, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d } \
++  }
++
+ static struct grub_relocator *relocator;
++static grub_efi_guid_t screen_info_guid = GRUB_EFI_LARCH_SCREEN_INFO_GUID;
+ 
+ void grub_linux_loongarch_elf_relocator_unload (void)
+ {
+   grub_relocator_unload (relocator);
+ }
+ 
++static void
++find_bits (unsigned long mask, grub_efi_uint8_t *pos, grub_efi_uint8_t *size)
++{
++  grub_efi_uint8_t first, len;
++
++  first = 0;
++  len = 0;
++
++  if (mask)
++    {
++      while (!(mask & 0x1))
++        {
++    mask = mask >> 1;
++    first++;
++        }
++
++      while (mask & 0x1)
++        {
++    mask = mask >> 1;
++    len++;
++        }
++    }
++
++  *pos = first;
++  *size = len;
++}
++
++static void
++setup_pixel_info (struct screen_info *si, grub_efi_uint32_t pixels_per_scan_line,
++                  struct grub_efi_gop_pixel_bitmask pixel_info, int pixel_format)
++{
++  if (pixel_format == GRUB_EFI_GOT_RGBA8)
++    {
++      si->lfb_depth = 32;
++      si->lfb_linelength = pixels_per_scan_line * 4;
++      si->red_size = 8;
++      si->red_pos = 0;
++      si->green_size = 8;
++      si->green_pos = 8;
++      si->blue_size = 8;
++      si->blue_pos = 16;
++      si->rsvd_size = 8;
++      si->rsvd_pos = 24;
++    }
++  else if (pixel_format == GRUB_EFI_GOT_BGRA8)
++    {
++      si->lfb_depth = 32;
++      si->lfb_linelength = pixels_per_scan_line * 4;
++      si->red_size = 8;
++      si->red_pos = 16;
++      si->green_size = 8;
++      si->green_pos = 8;
++      si->blue_size = 8;
++      si->blue_pos = 0;
++      si->rsvd_size = 8;
++      si->rsvd_pos = 24;
++    }
++  else if (pixel_format == GRUB_EFI_GOT_BITMASK)
++    {
++      find_bits(pixel_info.r, &si->red_pos, &si->red_size);
++      find_bits(pixel_info.g, &si->green_pos, &si->green_size);
++      find_bits(pixel_info.b, &si->blue_pos, &si->blue_size);
++      find_bits(pixel_info.a, &si->rsvd_pos, &si->rsvd_size);
++      si->lfb_depth = si->red_size + si->green_size +
++                      si->blue_size + si->rsvd_size;
++      si->lfb_linelength = (pixels_per_scan_line * si->lfb_depth) / 8;
++    }
++  else
++    {
++      si->lfb_depth = 4;
++      si->lfb_linelength = si->lfb_width / 2;
++      si->red_size = 0;
++      si->red_pos = 0;
++      si->green_size = 0;
++      si->green_pos = 0;
++      si->blue_size = 0;
++      si->blue_pos = 0;
++      si->rsvd_size = 0;
++      si->rsvd_pos = 0;
++    }
++}
++
++static struct screen_info *
++alloc_screen_info (void)
++{
++  grub_efi_status_t status;
++  grub_efi_boot_services_t *b;
++  struct screen_info *si;
++
++  b = grub_efi_system_table->boot_services;
++  status = efi_call_3 (b->allocate_pool, GRUB_EFI_RUNTIME_SERVICES_DATA,
++                           sizeof(*si), (void**)&si);
++  if (status != GRUB_EFI_SUCCESS)
++    return NULL;
++
++  status = b->install_configuration_table (&screen_info_guid, si);
++  if (status == GRUB_EFI_SUCCESS)
++    return si;
++
++  efi_call_1 (b->free_pool, si);
++
++  return NULL;
++}
++
++static struct screen_info *
++setup_screen_info (void)
++{
++  grub_efi_boot_services_t *b;
++  grub_efi_handle_t gop_handle;
++  struct screen_info *si = NULL;
++  struct grub_efi_gop *gop, *first_gop;
++  grub_efi_handle_t *handles;
++  grub_efi_uintn_t num_handles, i;
++  grub_efi_guid_t graphics_output_guid = GRUB_EFI_GOP_GUID;
++  grub_efi_uint16_t width, height;
++  grub_efi_uint32_t ext_lfb_base, pixels_per_scan_line;
++  grub_efi_uint64_t fb_base;
++  struct grub_efi_gop_pixel_bitmask pixel_info;
++  grub_efi_gop_pixel_format_t pixel_format;
++
++  si = alloc_screen_info();
++  if (!si)
++    return NULL;
++
++  handles = grub_efi_locate_handle (GRUB_EFI_BY_PROTOCOL,
++                    &graphics_output_guid, NULL, &num_handles);
++  if (!handles || num_handles == 0)
++    goto free_screen_info;
++
++  gop = NULL;
++  first_gop = NULL;
++
++  for (i = 0; i < num_handles; i++)
++    {
++      struct grub_efi_gop_mode *mode;
++      struct grub_efi_gop_mode_info *info = NULL;
++      grub_efi_guid_t conout_proto = GRUB_EFI_LARCH_CONSOLE_OUT_DEVICE_GUID;
++      void *dummy = NULL;
++      grub_efi_uint8_t conout_found = 0;
++      grub_efi_uint64_t current_fb_base;
++
++      gop_handle = handles[i];
++      gop = grub_efi_open_protocol (gop_handle, &graphics_output_guid,
++            GRUB_EFI_OPEN_PROTOCOL_GET_PROTOCOL);
++
++      dummy = grub_efi_open_protocol (gop_handle, &conout_proto,
++                GRUB_EFI_OPEN_PROTOCOL_GET_PROTOCOL);
++      if (dummy != NULL)
++        conout_found = 1;
++
++      mode = gop->mode;
++      info = mode->info;
++      current_fb_base = mode->fb_base;
++
++      if ((!first_gop || conout_found) &&
++        info->pixel_format != GRUB_EFI_GOT_BLT_ONLY)
++        {
++    /*
++    * Systems that use the UEFI Console Splitter may
++    * provide multiple GOP devices, not all of which are
++    * backed by real hardware. The workaround is to search
++    * for a GOP implementing the ConOut protocol, and if
++    * one isn't found, to just fall back to the first GOP.
++    */
++    width = info->width;
++    height = info->height;
++    pixel_format = info->pixel_format;
++    pixel_info = info->pixel_bitmask;
++    pixels_per_scan_line = info->pixels_per_scanline;
++    fb_base = current_fb_base;
++
++    /*
++    * Once we've found a GOP supporting ConOut,
++    * don't bother looking any further.
++    */
++    first_gop = gop;
++    if (conout_found)
++      break;
++        }
++    }
++
++  /* Did we find any GOPs? */
++  if (!first_gop)
++    goto free_screen_info;
++
++  /* EFI framebuffer */
++  si->orig_video_isVGA = GRUB_VIDEO_TYPE_EFI;
++
++  si->lfb_width = width;
++  si->lfb_height = height;
++  si->lfb_base = fb_base;
++  grub_dprintf ("loongson", "Screen info fb base: 0x%"PRIxGRUB_UINT32_T"\n",
++                si->lfb_base);
++
++  ext_lfb_base = (grub_uint64_t)fb_base >> 32;
++  if (ext_lfb_base) {
++    si->capabilities |= GRUB_VIDEO_CAPABILITY_64BIT_BASE;
++    si->ext_lfb_base = ext_lfb_base;
++  }
++  si->pages = 1;
++
++  setup_pixel_info(si, pixels_per_scan_line, pixel_info, pixel_format);
++
++  si->lfb_size = si->lfb_linelength * si->lfb_height;
++  si->capabilities |= GRUB_VIDEO_CAPABILITY_SKIP_QUIRKS;
++
++  return si;
++
++free_screen_info:
++  b = grub_efi_system_table->boot_services;
++  b->install_configuration_table (&screen_info_guid, NULL);
++  if (si)
++    efi_call_1 (b->free_pool, si);
++
++  grub_dprintf ("loongson", "No screen info\n");
++  return NULL;
++}
++
+ static grub_err_t
+ allocate_fdt_and_exit_boot (struct linux_loongarch64_kernel_params *kernel_params)
+ {
+@@ -242,6 +472,8 @@ grub_linux_loongarch_elf_linux_boot_image (struct linux_loongarch64_kernel_param
+   struct grub_relocator64_state state;
+   grub_err_t err;
+ 
++  setup_screen_info ();
++
+   /* linux kernel type is ELF */
+   grub_memset (&state, 0, sizeof (state));
+ 
+diff --git a/include/grub/loongarch64/linux.h b/include/grub/loongarch64/linux.h
+index f4b198a..c010982 100644
+--- a/include/grub/loongarch64/linux.h
++++ b/include/grub/loongarch64/linux.h
+@@ -79,6 +79,53 @@ struct linux_loongarch64_kernel_params
+                              sizeof (FDT_ADDR_CELLS_STRING) + \
+                              sizeof (FDT_SIZE_CELLS_STRING))
+ 
++/*
++ * These are set up by the setup-routine at boot-time:
++ */
++struct screen_info {
++  grub_efi_uint8_t  orig_x;       /* 0x00 */
++  grub_efi_uint8_t  orig_y;       /* 0x01 */
++  grub_efi_uint16_t ext_mem_k;    /* 0x02 */
++  grub_efi_uint16_t orig_video_page;  /* 0x04 */
++  grub_efi_uint8_t  orig_video_mode;  /* 0x06 */
++  grub_efi_uint8_t  orig_video_cols;  /* 0x07 */
++  grub_efi_uint8_t  flags;        /* 0x08 */
++  grub_efi_uint8_t  unused2;      /* 0x09 */
++  grub_efi_uint16_t orig_video_ega_bx;/* 0x0a */
++  grub_efi_uint16_t unused3;      /* 0x0c */
++  grub_efi_uint8_t  orig_video_lines; /* 0x0e */
++  grub_efi_uint8_t  orig_video_isVGA; /* 0x0f */
++  grub_efi_uint16_t orig_video_points;/* 0x10 */
++
++  /* VESA graphic mode -- linear frame buffer */
++  grub_efi_uint16_t lfb_width;    /* 0x12 */
++  grub_efi_uint16_t lfb_height;   /* 0x14 */
++  grub_efi_uint16_t lfb_depth;    /* 0x16 */
++  grub_efi_uint32_t lfb_base;     /* 0x18 */
++  grub_efi_uint32_t lfb_size;     /* 0x1c */
++  grub_efi_uint16_t cl_magic, cl_offset; /* 0x20 */
++  grub_efi_uint16_t lfb_linelength;   /* 0x24 */
++  grub_efi_uint8_t  red_size;     /* 0x26 */
++  grub_efi_uint8_t  red_pos;      /* 0x27 */
++  grub_efi_uint8_t  green_size;   /* 0x28 */
++  grub_efi_uint8_t  green_pos;    /* 0x29 */
++  grub_efi_uint8_t  blue_size;    /* 0x2a */
++  grub_efi_uint8_t  blue_pos;     /* 0x2b */
++  grub_efi_uint8_t  rsvd_size;    /* 0x2c */
++  grub_efi_uint8_t  rsvd_pos;     /* 0x2d */
++  grub_efi_uint16_t vesapm_seg;   /* 0x2e */
++  grub_efi_uint16_t vesapm_off;   /* 0x30 */
++  grub_efi_uint16_t pages;        /* 0x32 */
++  grub_efi_uint16_t vesa_attributes;  /* 0x34 */
++  grub_efi_uint32_t capabilities;     /* 0x36 */
++  grub_efi_uint32_t ext_lfb_base; /* 0x3a */
++  grub_efi_uint8_t  _reserved[2]; /* 0x3e */
++} __attribute__((packed));
++
++#define GRUB_VIDEO_TYPE_EFI     0x70
++#define GRUB_VIDEO_CAPABILITY_SKIP_QUIRKS    (1 << 0)
++#define GRUB_VIDEO_CAPABILITY_64BIT_BASE     (1 << 1)    /* Frame buffer base is 64-bit */
++
+ /* From arch/loongarch/include/asm/mach-loongson64/boot_param.h */
+ struct _extention_list_hdr {
+     grub_uint64_t		signature;
+-- 
+2.33.0
+
