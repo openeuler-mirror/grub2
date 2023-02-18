@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	27
+Release:	28
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -21,8 +21,6 @@ Source6:	gitignore
 Source7:        99-grub-mkconfig.install
 Source9:	strtoull_test.c
 Source10:	20-grub.install
-Source11:	installkernel-bls
-Source12:       installkernel.in
 
 %include %{SOURCE1}
 %include %{SOURCE2}
@@ -248,10 +246,6 @@ install -d -m 0755 %{buildroot}%{_unitdir}/system-update.target.wants
 install -m 0755 docs/grub-boot-indeterminate.service %{buildroot}%{_unitdir}
 ln -s ../grub-boot-indeterminate.service %{buildroot}%{_unitdir}/system-update.target.wants
 
-install -d -m 0755 %{buildroot}%{_libexecdir}/installkernel
-cp -v %{SOURCE11} %{buildroot}%{_libexecdir}/installkernel
-sed -e "s,@@LIBEXECDIR@@,%{_libexecdir}/installkernel,g" %{SOURCE12} > %{buildroot}%{_sbindir}/installkernel
-
 %global finddebugroot "%{_builddir}/%{?buildsubdir}/debug"
 
 %global dip RPM_BUILD_ROOT=%{finddebugroot} %{__debug_install_post}
@@ -329,7 +323,6 @@ rm -r /boot/grub2.tmp/ || :
 %defattr(-,root,root)
 %license COPYING
 %dir /boot/grub2/themes/system
-%attr(0755,root,root) %{_sbindir}/installkernel
 %attr(0700,root,root) %dir /boot/grub2
 %ghost %config(noreplace) /boot/grub2/grubenv
 %exclude /boot/grub2/*
@@ -339,7 +332,6 @@ rm -r /boot/grub2.tmp/ || :
 %{_prefix}/lib/kernel/install.d/20-grub.install
 %{_prefix}/lib/kernel/install.d/99-grub-mkconfig.install
 %{_sysconfdir}/kernel/install.d/*.install
-%{_libexecdir}/installkernel/installkernel-bls
 %dir %attr(0700,root,root) %{efi_esp_dir}
 %{_datadir}/locale/*
 
@@ -450,6 +442,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Sat Feb 18 2023 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.04-28
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:Remove installkernel and installkernel-bls scripts
+
 * Fri Dec 9 2022 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.04-27
 - Type:bugfix
 - CVE:NA
