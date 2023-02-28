@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	29
+Release:	30
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -442,6 +442,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Tue Feb 28 2023 fengtao <fengtao40@huawei.com> - 1:2.04-30
+- Type:feature
+- CVE:NA
+- SUG:NA
+- DESC:drop the environment variable of skip_tpcm
+
 * Tue Feb 28 2023 fengtao <fengtao40@huawei.com> - 1:2.04-29
 - Type:feature
 - CVE:NA

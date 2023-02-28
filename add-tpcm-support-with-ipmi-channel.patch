@@ -1,5 +1,5 @@
-From ae2d15e3f061197fce2a9106c8cfb2ab037aa171 Mon Sep 17 00:00:00 2001
-From: t.feng <fengtao40@huawei.com>
+From 9a6cb051b5f33f1138c1457dbb5b7a726297ee06 Mon Sep 17 00:00:00 2001
+From: "t.feng" <fengtao40@huawei.com>
 Date: Tue, 28 Feb 2023 16:25:30 +0800
 Subject: [PATCH] add tpcm support with ipmi channel
 
@@ -16,9 +16,9 @@ Signed-off-by: "t.feng" <fengtao40@huawei.com>
 Signed-off-by: zhangqiumiao <zhangqiumiao1@huawei.com>
 ---
  grub-core/Makefile.core.def   |   6 +
- grub-core/commands/efi/tpcm.c | 464 ++++++++++++++++++++++++++++++++++
+ grub-core/commands/efi/tpcm.c | 458 ++++++++++++++++++++++++++++++++++
  include/grub/efi/tpcm.h       | 235 +++++++++++++++++
- 3 files changed, 705 insertions(+)
+ 3 files changed, 699 insertions(+)
  create mode 100644 grub-core/commands/efi/tpcm.c
  create mode 100644 include/grub/efi/tpcm.h
 
@@ -41,10 +41,10 @@ index b26774b..935195f 100644
    common = commands/tr.c;
 diff --git a/grub-core/commands/efi/tpcm.c b/grub-core/commands/efi/tpcm.c
 new file mode 100644
-index 0000000..42a05eb
+index 0000000..0803b9b
 --- /dev/null
 +++ b/grub-core/commands/efi/tpcm.c
-@@ -0,0 +1,464 @@
+@@ -0,0 +1,458 @@
 +#include <grub/err.h>
 +#include <grub/i18n.h>
 +#include <grub/efi/api.h>
@@ -55,7 +55,6 @@ index 0000000..42a05eb
 +#include <grub/term.h>
 +#include <grub/misc.h>
 +#include <grub/time.h>
-+#include <grub/env.h>
 +
 +GRUB_MOD_LICENSE ("GPLv3+");
 +
@@ -462,15 +461,10 @@ index 0000000..42a05eb
 +static grub_err_t
 +tpcm_ipmi_measure (unsigned char *buf, grub_size_t size, const char *description)
 +{
-+  grub_dprintf("tpcm", "hash file: %s\n", description);
 +  if (tpcm_ipmi_get_switch())
 +    {
-+      const char *skip_tpcm;
-+      skip_tpcm = grub_env_get ("skip_tpcm");
-+      if (skip_tpcm && (skip_tpcm[0] == '1'))
-+        grub_dprintf ("tpcm", "tpcm: skip tpcm measure\n");
-+      else
-+        return grub_tpcm_log_event(buf, size, description);
++      grub_dprintf("tpcm", "hash file: %s\n", description);
++      return grub_tpcm_log_event(buf, size, description);
 +    }
 +
 +  return GRUB_ERR_NONE;
@@ -751,5 +745,5 @@ index 0000000..eea1387
 +
 +#endif
 -- 
-2.23.0
+2.27.0
 
