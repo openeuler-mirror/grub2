@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	28
+Release:	29
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -442,6 +442,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Tue Feb 28 2023 fengtao <fengtao40@huawei.com> - 1:2.04-29
+- Type:feature
+- CVE:NA
+- SUG:NA
+- DESC:add tpcm support with ipmi channel
+
 * Sat Feb 18 2023 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.04-28
 - Type:bugfix
 - CVE:NA
