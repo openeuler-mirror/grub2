@@ -423,3 +423,4 @@ Patch0422: backport-font-Harden-grub_font_blit_glyph-and-grub_font_blit_.patch
 Patch0423: backport-font-Assign-null_font-to-glyphs-in-ascii_font_glyph.patch
 Patch0424: backport-normal-charset-Fix-an-integer-overflow-in-grub_unico.patch
 Patch0425: backport-fs-minix-Avoid-mistakenly-probing-ext2-filesystems.patch
+Patch0426: add-tpcm-support-with-ipmi-channel.patch

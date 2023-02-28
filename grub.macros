@@ -114,7 +114,7 @@
 
 ### fixme
 %ifarch aarch64 %{arm}
-%global efi_modules " "
+%global efi_modules " tpcm "
 %else
 %global efi_modules " backtrace chain usb usbserial_common usbserial_pl2303 usbserial_ftdi usbserial_usbdebug "
 %endif

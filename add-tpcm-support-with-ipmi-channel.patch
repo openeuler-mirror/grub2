@@ -1,0 +1,755 @@
+From ae2d15e3f061197fce2a9106c8cfb2ab037aa171 Mon Sep 17 00:00:00 2001
+From: t.feng <fengtao40@huawei.com>
+Date: Tue, 28 Feb 2023 16:25:30 +0800
+Subject: [PATCH] add tpcm support with ipmi channel
+
+t.feng(2):
+add tpcm support with ipmi channel
+use uefi hash interface
+
+zhangqiumiao(3):
+reset response length when getting results failed
+fix firmwarehash length and uiCmdLength error
+clean code
+
+Signed-off-by: "t.feng" <fengtao40@huawei.com>
+Signed-off-by: zhangqiumiao <zhangqiumiao1@huawei.com>
+---
+ grub-core/Makefile.core.def   |   6 +
+ grub-core/commands/efi/tpcm.c | 464 ++++++++++++++++++++++++++++++++++
+ include/grub/efi/tpcm.h       | 235 +++++++++++++++++
+ 3 files changed, 705 insertions(+)
+ create mode 100644 grub-core/commands/efi/tpcm.c
+ create mode 100644 include/grub/efi/tpcm.h
+
+diff --git a/grub-core/Makefile.core.def b/grub-core/Makefile.core.def
+index b26774b..935195f 100644
+--- a/grub-core/Makefile.core.def
++++ b/grub-core/Makefile.core.def
+@@ -2513,6 +2513,12 @@ module = {
+   enable = efi;
+ };
+ 
++module = {
++  name = tpcm;
++  common = commands/efi/tpcm.c;
++  enable = efi;
++};
++
+ module = {
+   name = tr;
+   common = commands/tr.c;
+diff --git a/grub-core/commands/efi/tpcm.c b/grub-core/commands/efi/tpcm.c
+new file mode 100644
+index 0000000..42a05eb
+--- /dev/null
++++ b/grub-core/commands/efi/tpcm.c
+@@ -0,0 +1,464 @@
++#include <grub/err.h>
++#include <grub/i18n.h>
++#include <grub/efi/api.h>
++#include <grub/efi/efi.h>
++#include <grub/efi/tpcm.h>
++#include <grub/mm.h>
++#include <grub/verify.h>
++#include <grub/term.h>
++#include <grub/misc.h>
++#include <grub/time.h>
++#include <grub/env.h>
++
++GRUB_MOD_LICENSE ("GPLv3+");
++
++#define TRANS(value)  (((value << 24 ) & 0xFF000000) | \
++                       ((value <<  8 ) & 0x00FF0000) | \
++                       ((value >>  8 ) & 0x0000FF00) | \
++                       ((value >> 24 ) & 0x000000FF))
++
++static grub_efi_guid_t gIpmiInterfaceProtocolGuid = EFI_TPCM_GUID;
++static grub_efi_guid_t hash2_service_binding_guid = GRUB_EFI_HASH2_SERVICE_BINDING_PROTOCOL_GUID;
++static grub_efi_guid_t hash2_guid = GRUB_EFI_HASH2_PROTOCOL_GUID;
++static grub_efi_guid_t sm3_guid = GRUB_HASH_ALGORITHM_SM3_GUID;
++
++static grub_efi_ipmi_interface_protocol_t *tpcm_ipmi;
++static grub_efi_uint16_t grub_tcpm_file_type = GRUB_FILE_TYPE_NONE;
++
++static grub_uint32_t bm_stage_base = 2000;
++
++static grub_efi_handle_t
++grub_efi_service_binding (grub_efi_guid_t *service_binding_guid)
++{
++  grub_efi_service_binding_t *service;
++  grub_efi_status_t status;
++  grub_efi_handle_t child_dev = NULL;
++  grub_efi_handle_t *handles;
++  grub_efi_uintn_t num_handles;
++
++  handles = grub_efi_locate_handle (GRUB_EFI_BY_PROTOCOL, service_binding_guid, 0, &num_handles);
++  if (!handles)
++    {
++      grub_printf ("couldn't locate service binding protocol handles\n");
++      return NULL;
++    }
++
++  service = grub_efi_open_protocol (handles[0], service_binding_guid, GRUB_EFI_OPEN_PROTOCOL_GET_PROTOCOL);
++  if (!service)
++    {
++      grub_printf ("couldn't open efi service binding protocol\n");
++      return NULL;
++    }
++
++  status = efi_call_2 (service->create_child, service, &child_dev);
++  if (status != GRUB_EFI_SUCCESS)
++    {
++      grub_printf ("Failed to create child device of efi service %x\n", status);
++      return NULL;
++    }
++
++  return child_dev;
++}
++
++static inline void
++util_dump_hex (const char *name, void *p, int bytes)
++{
++
++  int i = 0;
++  char *data = p;
++  int add_newline = 1;
++  grub_dprintf ("tpcm", "%s length=%d:\n", name, bytes);
++  if (bytes != 0)
++    {
++      grub_dprintf ("tpcm", "%02x ", (unsigned char)data[i]);
++      i++;
++    }
++  while (i < bytes)
++    {
++      grub_dprintf ("tpcm", "%02x ", (unsigned char)data[i]);
++      i++;
++      if (i % 16 == 0)
++        {
++          grub_dprintf("tpcm", "\n");
++          add_newline = 0;
++        }
++      else
++          add_newline = 1;
++    }
++  if (add_newline)
++    grub_dprintf("tpcm", "\n");
++}
++
++static grub_efi_status_t
++grub_efi_hash (unsigned char *buf, grub_size_t size, unsigned char *content)
++{
++  grub_efi_status_t status = GRUB_EFI_SUCCESS;
++  grub_efi_hash2_protocol_t *hash2;
++  grub_efi_handle_t hash_handle;
++  unsigned char output[DEFAULT_HASH_SIZE] = {0};
++  grub_dprintf("tpcm", "grub_efi_hash binding service.\n");
++  hash_handle = grub_efi_service_binding (&hash2_service_binding_guid);
++  if (!hash_handle)
++    {
++      grub_dprintf ("tpcm", "hash2 service binding failed.\n");
++      status = GRUB_EFI_NOT_FOUND;
++      goto fail;
++    }
++  grub_dprintf("tpcm", "grub_efi_hash binding service success.\n");
++  hash2 = grub_efi_open_protocol (hash_handle, &hash2_guid, GRUB_EFI_OPEN_PROTOCOL_GET_PROTOCOL);
++  if (!hash2)
++    {
++      grub_dprintf ("tpcm", "hash2 protocol open failed.\n");
++      status =  GRUB_EFI_PROTOCOL_ERROR;
++      goto fail;
++    }
++  grub_dprintf("tpcm", "grub_efi_hash get protocol success.\n");
++  status = hash2->hash_init(hash2, &sm3_guid);
++  if (status != GRUB_EFI_SUCCESS)
++    {
++      grub_dprintf("tpcm", "hash_init failed.\n");
++      goto fail;
++    }
++  status = hash2->hash_update(hash2, buf, size);
++  if (status != GRUB_EFI_SUCCESS)
++    {
++      grub_dprintf("tpcm", "hash_update failed.\n");
++      goto fail;
++    }
++  status = hash2->hash_final(hash2, output);
++  if (status != GRUB_EFI_SUCCESS)
++    {
++      grub_dprintf("tpcm", "hash_final failed.\n");
++      goto fail;
++    }
++  util_dump_hex ("tpcm BIOS hash output: ", output, DEFAULT_HASH_SIZE);
++  grub_memcpy(content, output, DEFAULT_HASH_SIZE);
++
++fail:
++  return status;
++}
++
++static grub_err_t
++tpcm_ipmi_init (grub_file_t io,
++		      enum grub_file_type type __attribute__ ((unused)),
++		      void **context, enum grub_verify_flags *flags)
++{
++  *context = io->name;
++  grub_tcpm_file_type = type & GRUB_FILE_TYPE_MASK;
++  *flags |= GRUB_VERIFY_FLAGS_SINGLE_CHUNK;
++  return GRUB_ERR_NONE;
++}
++
++static grub_efi_uint8_t
++get_firmware_hash_content(unsigned char *buf, grub_size_t size, unsigned char *content)
++{
++  grub_efi_status_t status;
++
++  grub_dprintf ("tpcm", "grub_efi_hash:\n");
++  status = grub_efi_hash (buf, size, content);
++
++  return status;
++}
++
++static grub_err_t
++grub_tpcm_set_firmware_detailtype (grub_efi_uint8_t *type)
++{
++  switch (grub_tcpm_file_type)
++    {
++    case GRUB_FILE_TYPE_LINUX_KERNEL:
++      *type = IPMI_FW_DETAIL_KERNEL;
++      break;
++    case GRUB_FILE_TYPE_LINUX_INITRD:
++      *type = IPMI_FW_DETAIL_INITRD;
++      break;
++    case GRUB_FILE_TYPE_CONFIG:
++      *type = IPMI_FW_DETAIL_GRUB_CFG;
++      break;
++    default:
++      grub_dprintf ("tpcm", "%d is not a file type that TPCM cares about.\n", grub_tcpm_file_type);
++      grub_tcpm_file_type = GRUB_FILE_TYPE_NONE;
++      break;
++    }
++
++  return GRUB_ERR_NONE;
++}
++
++static void
++grub_tpcm_fillup_content (OEM_BMC_MEASURE_REQUSET *request_data, unsigned char *output)
++{
++  grub_efi_uint32_t filename_len = 0;
++  switch (grub_tcpm_file_type)
++    {
++    case GRUB_FILE_TYPE_LINUX_KERNEL:
++      filename_len = grub_strlen("kernel");
++      grub_memcpy ((grub_efi_uint8_t *)(request_data->FirmwareHashContent.uaObj),
++		      "kernel", filename_len);
++      break;
++    case GRUB_FILE_TYPE_LINUX_INITRD:
++      filename_len = grub_strlen("initrd");
++      grub_memcpy ((grub_efi_uint8_t *)(request_data->FirmwareHashContent.uaObj),
++		      "initrd", filename_len);
++      break;
++    case GRUB_FILE_TYPE_CONFIG:
++      filename_len = grub_strlen("grub.cfg");
++      grub_memcpy ((grub_efi_uint8_t *)(request_data->FirmwareHashContent.uaObj),
++		      "grub.cfg", filename_len);
++      break;
++    default:
++      grub_dprintf ("tpcm", "%d is not a file type that TPCM cares about.\n", grub_tcpm_file_type);
++      break;
++    }
++
++  request_data->FirmwareHashContent.uiCmdTag = TRANS (TPCM_TAG_REQ_COMMAND);
++  request_data->FirmwareHashContent.uiCmdLength = TRANS (sizeof (extern_simple_bmeasure_req_st));
++  request_data->FirmwareHashContent.uiCmdCode = TRANS (TPCM_ORD_ExternSimpleBootMeasure);
++  request_data->FirmwareHashContent.uiPcr = TRANS (0);
++
++  grub_uint32_t stage_base = bm_stage_base++;
++  request_data->FirmwareHashContent.uiStage = TRANS (stage_base);
++
++  grub_memcpy ((grub_efi_uint8_t *)(request_data->FirmwareHashContent.uaDigest),
++               output, DEFAULT_HASH_SIZE);
++  request_data->FirmwareHashContent.uiObjLen = TRANS (filename_len);
++
++  return;
++}
++
++static grub_efi_status_t
++grub_tpcm_request_result (void)
++{
++  grub_efi_status_t status = GRUB_EFI_SUCCESS;
++  grub_ipmi_cmd_header request = {IPMI_BMC_LUN,
++                                  IPMI_NETFN_OEM,
++                                  IPMI_CMD_GET_MEASURE_PARM};
++  grub_efi_uint8_t response_length;
++  OEM_BMC_GET_RESULT_REQUSET get_result_request_data;
++  OEM_BMC_GET_RESULT_RESPONSE get_result_response_data;
++
++  grub_efi_int16_t timeout_ms = GRUB_IPMI_TIMEOUT_MS;
++
++  grub_memset (&get_result_request_data, 0, sizeof(get_result_request_data));
++  grub_memset (&get_result_response_data, 0, sizeof(get_result_response_data));
++
++  get_result_request_data.OemSignature[0] = 0xDB;
++  get_result_request_data.OemSignature[1] = 0x07;
++  get_result_request_data.OemSignature[2] = 0x00;
++  get_result_request_data.SubCmd = IPMI_SUB_CMD_CONTROL_REQ;
++  get_result_request_data.FirmwareType = IPMI_FW_OS;
++
++  // TODO: we should not load files expect: grub.cfg vmlinuz and initrd
++  grub_tpcm_set_firmware_detailtype (&(get_result_request_data.FirmwareDetailType));
++
++  while (timeout_ms > 0)
++    {
++      response_length = sizeof (OEM_BMC_GET_RESULT_RESPONSE);
++      grub_millisleep (200);
++      timeout_ms -= 200;
++
++      grub_dprintf ("tpcm", "get result request: request_size[%lu], response_length[%d]\n",
++                    sizeof(get_result_request_data), response_length);
++
++      status = tpcm_ipmi->excute_ipmi_cmd (tpcm_ipmi, request, &get_result_request_data,
++                                           sizeof(get_result_request_data), &get_result_response_data,
++                                           &response_length, NULL);
++      if (status != GRUB_EFI_SUCCESS)
++        {
++          grub_dprintf ("tpcm", "excute_ipmi_cmd failed, request sub_cmd:%d, ret:%lu\n",
++                        get_result_request_data.SubCmd, status);
++          continue;
++        }
++
++      if (response_length == sizeof (OEM_BMC_GET_RESULT_RESPONSE) && \
++          get_result_response_data.ControlResult != IPMI_MEASURE_UNKNOW)
++        {
++          grub_dprintf ("tpcm", "request ControlResult success, ControlResult:%d\n",
++                        get_result_response_data.ControlResult);
++          break;
++        }
++    }
++
++  if (get_result_response_data.ControlResult == IPMI_MEASURE_SUCCESS)
++    {
++      return GRUB_EFI_SUCCESS;
++    }
++  else if (timeout_ms <= 0)
++    {
++      grub_dprintf ("tpcm", "request TPCM constrol result timout");
++      return GRUB_EFI_TIMEOUT;
++    }
++
++  return GRUB_EFI_UNSUPPORTED;
++}
++
++static grub_err_t
++grub_tpcm_log_event (unsigned char *buf, grub_size_t size, const char *description)
++{
++  grub_err_t err = GRUB_ERR_NONE;
++  grub_efi_status_t status = GRUB_EFI_SUCCESS;
++  grub_ipmi_cmd_header request = {IPMI_BMC_LUN,
++                                  IPMI_NETFN_OEM,
++                                  IPMI_CMD_GET_MEASURE_PARM};
++  OEM_BMC_MEASURE_REQUSET *request_data = NULL;
++  OEM_BMC_MEASURE_RESPONSE response_data;
++
++  unsigned char output[DEFAULT_HASH_SIZE] = {0};
++  grub_efi_uint8_t response_length = sizeof (OEM_BMC_MEASURE_RESPONSE);
++
++  grub_memset (&response_data, 0, sizeof (response_data));
++
++  request_data = grub_calloc (1, sizeof (OEM_BMC_MEASURE_REQUSET));
++  if (!request_data)
++    {
++      grub_dprintf ("tpcm", "malloc request_data failed.\n");
++      grub_error (GRUB_ERR_OUT_OF_MEMORY, "out of memory");
++      return grub_errno;
++    }
++
++  request_data->OemSignature[0] = 0xDB;
++  request_data->OemSignature[1] = 0x07;
++  request_data->OemSignature[2] = 0x00;
++  request_data->SubCmd = IPMI_SUB_CMD_MEASURE_REQ;
++  request_data->FirmwareType = IPMI_FW_OS;
++  request_data->FirmwareHashAlgoType = IPMI_FW_HASH_SM3; 
++
++  grub_tpcm_set_firmware_detailtype (&(request_data->FirmwareDetailType));
++
++  status = get_firmware_hash_content (buf, size, output);
++  if (status != GRUB_EFI_SUCCESS)
++    {
++      grub_printf ("get firmware hash content failed\n");
++      err = GRUB_ERR_BUG;
++      goto fail;
++    }
++
++  request_data->FirmwareHashLen = sizeof(extern_simple_bmeasure_req_st);
++  grub_tpcm_fillup_content (request_data, output);
++
++  status = tpcm_ipmi->excute_ipmi_cmd (tpcm_ipmi, request, request_data,
++                                       sizeof (OEM_BMC_MEASURE_REQUSET), &response_data,
++                                       &response_length, NULL);
++  if (status != GRUB_EFI_SUCCESS)
++    {
++      err = grub_error (GRUB_ERR_BUG,
++                        "excute_ipmi_cmd failed, request sub_cmd:0x%x, ret:%lu\n",
++                        request_data->SubCmd, status);
++      goto fail;
++    }
++  grub_dprintf ("tpcm", "send tpcm measure request success\n");
++
++  status = grub_tpcm_request_result ();
++  if (status != GRUB_EFI_SUCCESS)
++    {
++      err = grub_error (GRUB_ERR_BAD_SIGNATURE, "bad tpcm signature");
++      goto fail;
++    }
++  grub_dprintf ("tpcm", "tpcm hash verify success, file:%s\n", description);
++
++ fail:
++  if (request_data)
++    {
++      grub_free (request_data);
++    }
++  return err;
++}
++
++static grub_efi_uint8_t
++tpcm_ipmi_get_switch (void)
++{
++  grub_efi_status_t status = GRUB_EFI_SUCCESS;
++  grub_ipmi_cmd_header request = {IPMI_BMC_LUN,
++                                  IPMI_NETFN_OEM,
++                                  IPMI_CMD_GET_MEASURE_PARM};
++  OEM_BMC_GET_SWITCH_REQUSET request_data;
++  OEM_BMC_GET_SWITCH_RESPONSE response_data;
++  grub_efi_uint8_t response_length;
++
++  grub_memset (&request_data, 0, sizeof (request_data));
++  grub_memset (&response_data, 0, sizeof (response_data));
++
++  request_data.OemSignature[0] = 0xDB;
++  request_data.OemSignature[1] = 0x07;
++  request_data.OemSignature[2] = 0x00;
++  request_data.SubCmd = IPMI_SUB_CMD_SWITCH_REQ;
++  request_data.FirmwareType = IPMI_FW_OS;
++  request_data.FirmwareDetailType = IPMI_FW_DETAIL_GRUB_CFG;
++
++  response_length = sizeof (OEM_BMC_GET_SWITCH_RESPONSE);
++
++  // TODO: 确认bios接口excute_ipmi_cmd, 请求开关控制结果这块代码是否需要轮询
++  status = tpcm_ipmi->excute_ipmi_cmd (tpcm_ipmi, request, &request_data,
++                                       sizeof(request_data), &response_data,
++                                       &response_length, NULL);
++  if (status != GRUB_EFI_SUCCESS)
++    {
++      grub_printf ("excute_ipmi_cmd failed, request sub_cmd:%d, ret:%lu\n",
++                   request_data.SubCmd, status);
++      /*  if we excute_ipmi_cmd, it could be the fllowing results:
++       *  1. uefi have this interface, but did not implement it.
++       *  2. uefi have implemented, but bmc did not support TPCM
++       *  All of these situation should booting normally.
++       */
++      goto out;
++    }
++
++  if (response_data.ControlResult == IPMI_TPCM_OPEN)
++    {
++      grub_dprintf ("tpcm", "tpcm: Enabled\n");
++      return 1;
++    }
++
++ out:
++  grub_dprintf ("tpcm", "tpcm: Disabled or Unknown, ControlResult: %d\n", response_data.ControlResult);
++  return 0;
++}
++
++static grub_err_t
++tpcm_ipmi_measure (unsigned char *buf, grub_size_t size, const char *description)
++{
++  grub_dprintf("tpcm", "hash file: %s\n", description);
++  if (tpcm_ipmi_get_switch())
++    {
++      const char *skip_tpcm;
++      skip_tpcm = grub_env_get ("skip_tpcm");
++      if (skip_tpcm && (skip_tpcm[0] == '1'))
++        grub_dprintf ("tpcm", "tpcm: skip tpcm measure\n");
++      else
++        return grub_tpcm_log_event(buf, size, description);
++    }
++
++  return GRUB_ERR_NONE;
++}
++
++static grub_err_t
++tpcm_ipmi_write (void *context __attribute__ ((unused)), void *buf, grub_size_t size)
++{
++  grub_err_t err;
++  err = tpcm_ipmi_measure (buf, size, context);
++  grub_tcpm_file_type = GRUB_FILE_TYPE_NONE;
++  return err;
++}
++
++struct grub_file_verifier tpcm =
++  {
++    .name = "tpcm",
++    .init = tpcm_ipmi_init,
++    .write = tpcm_ipmi_write
++  };
++
++
++GRUB_MOD_INIT(tpcm)
++{
++  tpcm_ipmi = grub_efi_locate_protocol (&gIpmiInterfaceProtocolGuid, 0);
++  if (!tpcm_ipmi)
++    {
++      grub_dprintf ("tpcm", "locate IpmiInterfaceProtocol failed, TPCM unsupported in the machine.\n");
++      return;
++    }
++  grub_verifier_register (&tpcm);
++}
++
++GRUB_MOD_FINI(tpcm)
++{
++  grub_verifier_unregister (&tpcm);
++}
++
+diff --git a/include/grub/efi/tpcm.h b/include/grub/efi/tpcm.h
+new file mode 100644
+index 0000000..eea1387
+--- /dev/null
++++ b/include/grub/efi/tpcm.h
+@@ -0,0 +1,235 @@
++#ifndef GRUB_EFI_TPCM_HEADER
++#define GRUB_EFI_TPCM_HEADER 1
++
++#define GRUB_EFI_HASH2_SERVICE_BINDING_PROTOCOL_GUID \
++  { \
++    0xda836f8d, 0x217f, 0x4ca0, { 0x99, 0xc2, 0x1c, 0xa4, 0xe1, 0x60, 0x77, 0xea } \
++  }
++
++#define GRUB_EFI_HASH2_PROTOCOL_GUID \
++  { \
++    0x55b1d734, 0xc5e1, 0x49db, { 0x96, 0x47, 0xb1, 0x6a, 0xfb, 0xe, 0x30, 0x5b } \
++  }
++
++#define EFI_TPCM_GUID \
++  { \
++    0xa37e200e, 0xda90, 0x473b, { 0x8b, 0xb5, 0x1d, 0x7b, 0x11, 0xba, 0x32, 0x33 } \
++  }
++
++#define GRUB_HASH_ALGORITHM_SM3_GUID \
++  { \
++    0x9DCD754B, 0x3479, 0x27AD, { 0x56, 0x4C, 0x68, 0x7C, 0x68, 0xEC, 0xF9, 0xB9 } \
++  }
++
++
++#define OEM_SIG_SIZE                3
++#define FIRMWARE_VERSION_SIZE       32
++#define FIRMWARE_HASH_CONTENT_SIZE  32
++#define FIRMWARE_NAME_SIZE          32
++#define GRUB_IPMI_TIMEOUT_MS        7000
++
++// LUN
++#define IPMI_BMC_LUN                0x00
++// Net Function Definition
++#define IPMI_NETFN_OEM              0x30
++
++#define IPMI_CMD_GET_MEASURE_PARM   0x92 //change a name
++
++#define IPMI_SUB_CMD_MEASURE_REQ    0x57 //change a name
++#define IPMI_SUB_CMD_CONTROL_REQ    0x58
++#define IPMI_SUB_CMD_SWITCH_REQ     0x59
++
++//bmeasure
++#define DEFAULT_HASH_SIZE                   32
++#define MEASURE_DATA_MEM_SIZE               0x100000
++
++#define TPCM_TAG_REQ_COMMAND                0x000000C1 
++#define TPCM_ORD_ExternSimpleBootMeasure    0x00001053
++
++typedef struct {
++    grub_efi_uint32_t uiCmdTag;
++    grub_efi_uint32_t uiCmdLength;
++    grub_efi_uint32_t uiCmdCode;
++    grub_efi_uint32_t uiPcr;
++    grub_efi_uint32_t uiStage;
++    grub_efi_uint8_t  uaDigest[DEFAULT_HASH_SIZE];
++    grub_efi_uint32_t uiObjLen;
++    grub_efi_uint8_t  uaObj[FIRMWARE_NAME_SIZE];
++}extern_simple_bmeasure_req_st;
++
++typedef struct {
++    grub_efi_uint8_t  OemSignature[OEM_SIG_SIZE];
++    grub_efi_uint8_t  SubCmd;
++    grub_efi_uint8_t  FirmwareType;
++    grub_efi_uint8_t  FirmwareDetailType;
++    grub_efi_uint8_t  FirmwareHashAlgoType;
++    grub_efi_uint8_t  FirmwareHashLen;
++    extern_simple_bmeasure_req_st FirmwareHashContent;
++    // reserved for kernel and initrd's version
++    grub_efi_uint8_t  FirmwareVerionLen;
++    grub_efi_uint8_t  FirmwareVerion[0];
++} OEM_BMC_MEASURE_REQUSET;
++
++typedef struct {
++    grub_efi_uint8_t  CompletionCode;
++    grub_efi_uint8_t  OemSignature[OEM_SIG_SIZE];
++} OEM_BMC_MEASURE_RESPONSE;
++
++typedef struct {
++    grub_efi_uint8_t  OemSignature[OEM_SIG_SIZE];
++    grub_efi_uint8_t  SubCmd;
++    grub_efi_uint8_t  FirmwareType;
++    grub_efi_uint8_t  FirmwareDetailType;
++} OEM_BMC_GET_RESULT_REQUSET;
++
++typedef struct {
++    /* In the specification of BMC <--> BIOS(GRUB2), we need CompletionCode
++     * But, BIOS has pre-processed CompletionCode in function: excute_ipmi_cmd
++     * So, we delete the word:
++     * grub_efi_uint8_t  CompletionCode;
++     */
++    grub_efi_uint8_t  OemSignature[OEM_SIG_SIZE];
++    grub_efi_uint8_t  ControlResult;
++} OEM_BMC_GET_RESULT_RESPONSE;
++
++typedef struct {
++    grub_efi_uint8_t  OemSignature[OEM_SIG_SIZE];
++    grub_efi_uint8_t  SubCmd;
++    grub_efi_uint8_t  FirmwareType;
++    grub_efi_uint8_t  FirmwareDetailType;
++} OEM_BMC_GET_SWITCH_REQUSET;
++
++typedef struct {
++    /* In the specification of BMC <--> BIOS(GRUB2), we need CompletionCode
++     * But, BIOS has pre-processed CompletionCode in function: excute_ipmi_cmd
++     * So, we delete the word:
++     * grub_efi_uint8_t  CompletionCode;
++     */
++    grub_efi_uint8_t  OemSignature[OEM_SIG_SIZE];
++    grub_efi_uint8_t  ControlResult;
++} OEM_BMC_GET_SWITCH_RESPONSE;
++
++typedef enum {
++    IPMI_SYSTEM_INTERFACE_UNKNOWN,  // IPMI_SYSTEM_INTERFACE_TYPE->UNKNOWN
++    IPMI_SYSTEM_INTERFACE_KCS,
++    IPMI_SYSTEM_INTERFACE_SMIC,
++    IPMI_SYSTEM_INTERFACE_BT, // IPMI_SYSTEM_INTERFACE_TYPE->BT
++    IPMI_SYSTEM_INTERFACE_SSIF,
++    IPMI_SYSTEM_INTERFACE_MAX_TYPE // IPMI_SYSTEM_INTERFACE_TYPE->MAX_TYPE
++} grub_ipmi_system_interface_type;
++
++
++typedef struct {
++    grub_efi_uint8_t lun : 2;
++    grub_efi_uint8_t net_fn : 6;
++    grub_efi_uint8_t cmd;
++} grub_ipmi_cmd_header;
++
++typedef enum {
++    IPMI_MEMORY,
++    IPMI_IO, // IPMI_IO
++    IPMI_MAX_INTERFACE_ADDRESS_TYPE
++} grub_ipmi_interface_address_type;
++
++typedef enum {
++    IPMI_FW_SHIM,
++    IPMI_FW_SHIM_GRUB,
++    IPMI_FW_OS
++} grub_ipmi_firmware_type;
++
++typedef enum {
++    IPMI_FW_DETAIL_GRUB_CFG,
++    IPMI_FW_DETAIL_KERNEL,
++    IPMI_FW_DETAIL_INITRD
++} grub_ipmi_firmware_detail_type;
++
++typedef enum {
++    IPMI_FW_HASH_SM3,
++    IPMI_FW_HASH_RESERVED1,
++    IPMI_FW_HASH_RESERVED2
++} grub_ipmi_firmware_hash_algo_type;
++
++typedef enum {
++    IPMI_MEASURE_UNKNOW,
++    IPMI_MEASURE_SUCCESS,
++    IPMI_MEASURE_FAIL
++} grub_ipmi_measure_result_type;
++
++typedef enum {
++    IPMI_TPCM_UNKNOW,
++    IPMI_TPCM_OPEN,
++    IPMI_TPCM_CLOSE
++} grub_ipmi_tpcm_result_type;
++
++
++typedef grub_efi_uint8_t EFI_MD5_HASH2[16];
++typedef grub_efi_uint8_t EFI_SHA1_HASH2[20];
++typedef grub_efi_uint8_t EFI_SHA224_HASH2[28];
++typedef grub_efi_uint8_t EFI_SHA256_HASH2[32];
++typedef grub_efi_uint8_t EFI_SHA384_HASH2[48];
++typedef grub_efi_uint8_t EFI_SHA512_HASH2[64];
++typedef grub_efi_uint8_t EFI_SM3_HASH2[32];
++
++typedef union {
++  EFI_MD5_HASH2       Md5Hash;
++  EFI_SHA1_HASH2      Sha1Hash;
++  EFI_SHA224_HASH2    Sha224Hash;
++  EFI_SHA256_HASH2    Sha256Hash;
++  EFI_SHA384_HASH2    Sha384Hash;
++  EFI_SHA512_HASH2    Sha512Hash;
++  EFI_SM3_HASH2       Sm3Hash;
++} grub_efi_hash2_output;
++
++struct grub_efi_hash2_protocol {
++  grub_efi_status_t
++  (*get_hash_size) (struct grub_efi_hash2_protocol *this,
++                    grub_efi_guid_t *hash_algorithm,
++                    grub_efi_uintn_t hash_size);
++
++  grub_efi_status_t
++  (*hash) (struct grub_efi_hash2_protocol *this,
++           grub_efi_guid_t *hash_algorithm,
++           grub_efi_uint8_t *message,
++           grub_efi_uintn_t message_size,
++           grub_efi_hash2_output *hash);
++
++  grub_efi_status_t
++  (*hash_init) (struct grub_efi_hash2_protocol *this,
++                grub_efi_guid_t *hash_algorithm);
++
++  grub_efi_status_t
++  (*hash_update) (struct grub_efi_hash2_protocol *this,
++                  grub_efi_uint8_t *message,
++                  grub_efi_uintn_t message_size);
++
++  grub_efi_status_t
++  (*hash_final) (struct grub_efi_hash2_protocol *this,
++                 grub_efi_hash2_output *hash);
++};
++typedef struct grub_efi_hash2_protocol grub_efi_hash2_protocol_t;
++
++struct grub_efi_ipmi_interface_protocol {
++  grub_efi_status_t
++  (*excute_ipmi_cmd) (struct grub_efi_ipmi_interface_protocol *this,
++                      grub_ipmi_cmd_header request,
++                      void *send_data,
++                      grub_efi_uint8_t send_length,
++                      void *recv_data,
++                      grub_efi_uint8_t *recv_length,
++                      grub_efi_uint16_t *status_codes);
++
++  grub_ipmi_system_interface_type
++  (*get_ipmi_interface_type) (struct grub_efi_ipmi_interface_protocol *this);
++
++  grub_efi_uint16_t
++  (*get_ipmi_base_address) (struct grub_efi_ipmi_interface_protocol *this);
++
++  grub_ipmi_interface_address_type
++  (*get_ipmi_base_address_type) (struct grub_efi_ipmi_interface_protocol *this);
++
++  grub_efi_uint8_t
++  (*get_ipmi_version) (struct grub_efi_ipmi_interface_protocol *this);
++};
++typedef struct grub_efi_ipmi_interface_protocol grub_efi_ipmi_interface_protocol_t;
++
++#endif
+-- 
+2.23.0
+
