@@ -14,7 +14,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.06
-Release:	23
+Release:	24
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -439,6 +439,12 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Fri Mar 10 2023 mengyingkun <mengyingkun@loongson.cn> - 1:2.06-24
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:loongarch: Add support for new EFI screen info GUID
+
 * Mon Feb 13 2023 mengyingkun <mengyingkun@loongson.cn> - 1:2.06-23
 - Type:bugfix
 - CVE:NA

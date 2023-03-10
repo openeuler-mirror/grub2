@@ -1,0 +1,62 @@
+From dc3d6e1b080e61a02a8e02e090e3910ca168e616 Mon Sep 17 00:00:00 2001
+From: mengyingkun <mengyingkun@loongson.cn>
+Date: Fri, 10 Mar 2023 11:00:51 +0800
+Subject: [PATCH] loongarch: Add support for new EFI screen info GUID
+
+Support new screen info GUID defined by upstream kernel, and
+keep compatible with old GUID defined by loongson.
+
+Signed-off-by: mengyingkun <mengyingkun@loongson.cn>
+---
+ grub-core/loader/loongarch64/linux-elf.c | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/grub-core/loader/loongarch64/linux-elf.c b/grub-core/loader/loongarch64/linux-elf.c
+index 15f9984..86a90e7 100644
+--- a/grub-core/loader/loongarch64/linux-elf.c
++++ b/grub-core/loader/loongarch64/linux-elf.c
+@@ -58,8 +58,14 @@
+     { 0xac, 0x74, 0xca, 0x55, 0x52, 0x31, 0xcc, 0x68 } \
+   }
+ 
++#define GRUB_EFI_SCREEN_INFO_GUID \
++  { 0xe03fc20a, 0x85dc, 0x406e,  \
++    { 0xb9, 0x0e, 0x4a, 0xb5, 0x02, 0x37, 0x1d, 0x95 } \
++  }
++
+ static struct grub_relocator *relocator;
+-static grub_efi_guid_t screen_info_guid = GRUB_EFI_LARCH_SCREEN_INFO_GUID;
++static grub_efi_guid_t compat_screen_info_guid = GRUB_EFI_LARCH_SCREEN_INFO_GUID;
++static grub_efi_guid_t screen_info_guid = GRUB_EFI_SCREEN_INFO_GUID;
+ 
+ void grub_linux_loongarch_elf_relocator_unload (void)
+ {
+@@ -161,10 +167,17 @@ alloc_screen_info (void)
+   if (status != GRUB_EFI_SUCCESS)
+     return NULL;
+ 
++  status = b->install_configuration_table (&compat_screen_info_guid, si);
++  if (status != GRUB_EFI_SUCCESS)
++    goto free_mem;
++
+   status = b->install_configuration_table (&screen_info_guid, si);
+   if (status == GRUB_EFI_SUCCESS)
+     return si;
+ 
++free_table:
++  b->install_configuration_table (&compat_screen_info_guid, NULL);
++free_mem:
+   efi_call_1 (b->free_pool, si);
+ 
+   return NULL;
+@@ -276,6 +289,7 @@ setup_screen_info (void)
+ 
+ free_screen_info:
+   b = grub_efi_system_table->boot_services;
++  b->install_configuration_table (&compat_screen_info_guid, NULL);
+   b->install_configuration_table (&screen_info_guid, NULL);
+   if (si)
+     efi_call_1 (b->free_pool, si);
+-- 
+2.33.0
+
