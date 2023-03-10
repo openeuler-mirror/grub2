@@ -307,4 +307,5 @@ Patch0303: backport-fs-iso9660-Fix-memory-leaks-in-grub_iso9660_susp_ite.patch
 %ifarch loongarch64
 Patch0304: loongarch-Add-EFI-frame-buffer-support.patch
 Patch0305: loongarch-Add-support-for-v4.0-interface.patch
+Patch0306: loongarch-Add-support-for-new-EFI-screen-info-GUID.patch
 %endif
