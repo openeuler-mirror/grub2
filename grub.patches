@@ -309,3 +309,4 @@ Patch0304: loongarch-Add-EFI-frame-buffer-support.patch
 Patch0305: loongarch-Add-support-for-v4.0-interface.patch
 Patch0306: loongarch-Add-support-for-new-EFI-screen-info-GUID.patch
 %endif
+Patch0307: 0202-rpm-sort-add-prereqs-for-declaration-of-strchrnul.patch
