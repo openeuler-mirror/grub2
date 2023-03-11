@@ -1,0 +1,42 @@
+From da43f9b55b5084a1c9f72785fa29ec62e70658c2 Mon Sep 17 00:00:00 2001
+From: Robbie Harwood <rharwood@redhat.com>
+Date: Thu, 5 May 2022 18:01:05 -0400
+Subject: [PATCH] rpm-sort: add prereqs for declaration of strchrnul()
+
+Reference:https://src.fedoraproject.org/rpms/grub2/c/ea7cfdf72690c5d6e15af02a3e395a40dd24f7c7
+Conflict:NA
+
+Signed-off-by: Robbie Harwood <rharwood@redhat.com>
+---
+ util/grub-rpm-sort.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/util/grub-rpm-sort.c b/util/grub-rpm-sort.c
+index 8345944..71d038b 100644
+--- a/util/grub-rpm-sort.c
++++ b/util/grub-rpm-sort.c
+@@ -1,13 +1,17 @@
++#define _GNU_SOURCE 1
++
+ #include <config.h>
++
++#include <argp.h>
++#include <assert.h>
++#include <errno.h>
+ #include <grub/types.h>
+ #include <grub/util/misc.h>
++#include <rpm/rpmlib.h>
+ #include <stdio.h>
+ #include <stdlib.h>
++#include <string.h>
+ #include <unistd.h>
+-#include <errno.h>
+-#include <assert.h>
+-#include <argp.h>
+-#include <rpm/rpmlib.h>
+ 
+ static size_t
+ read_file (const char *input, char **ret)
+-- 
+2.27.0
+
