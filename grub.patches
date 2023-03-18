@@ -310,3 +310,6 @@ Patch0305: loongarch-Add-support-for-v4.0-interface.patch
 Patch0306: loongarch-Add-support-for-new-EFI-screen-info-GUID.patch
 %endif
 Patch0307: 0202-rpm-sort-add-prereqs-for-declaration-of-strchrnul.patch
+%ifarch loongarch64
+Patch0308: loongarch-Force-initrd-load-address-64KiB-alignment.patch
+%endif
