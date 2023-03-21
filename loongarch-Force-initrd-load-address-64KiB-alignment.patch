@@ -1,0 +1,26 @@
+From 1107e231094bf2e6cde9daea3bb22b1fccb92bc5 Mon Sep 17 00:00:00 2001
+From: mengyingkun <mengyingkun@loongson.cn>
+Date: Sat, 18 Mar 2023 09:33:41 +0800
+Subject: [PATCH] loongarch: Force initrd load address 64KiB alignment
+
+Signed-off-by: mengyingkun <mengyingkun@loongson.cn>
+---
+ grub-core/loader/loongarch64/linux.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/grub-core/loader/loongarch64/linux.c b/grub-core/loader/loongarch64/linux.c
+index 03b7940..5f1d845 100644
+--- a/grub-core/loader/loongarch64/linux.c
++++ b/grub-core/loader/loongarch64/linux.c
+@@ -329,7 +329,7 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
+   initrd_size = grub_get_initrd_size (&initrd_ctx);
+   grub_dprintf ("linux", "Loading initrd\n");
+ 
+-  initrd_mem = grub_linux_loongarch_alloc_initrd_mem_align (initrd_size, 0x1000, &err);
++  initrd_mem = grub_linux_loongarch_alloc_initrd_mem_align (initrd_size, 0x10000, &err);
+   if (err)
+     goto fail;
+ 
+-- 
+2.33.0
+
