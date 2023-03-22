@@ -424,3 +424,14 @@ Patch0423: backport-font-Assign-null_font-to-glyphs-in-ascii_font_glyph.patch
 Patch0424: backport-normal-charset-Fix-an-integer-overflow-in-grub_unico.patch
 Patch0425: backport-fs-minix-Avoid-mistakenly-probing-ext2-filesystems.patch
 Patch0426: add-tpcm-support-with-ipmi-channel.patch
+Patch0427: backport-disk-diskfilter-Check-calloc-result-for-NULL.patch
+Patch0428: backport-kern-buffer-Handle-NULL-input-pointer-in-grub_buffer.patch
+Patch0429: backport-disk-diskfilter-Don-t-make-a-RAID-array-with-more-th.patch
+Patch0430: backport-loader-multiboot_elfxx-Fix-memory-leak.patch
+Patch0431: backport-normal-cmdline-Fix-two-related-integer-underflows.patch
+Patch0432: backport-term-i386-pc-vga_text-Prevent-out-of-bounds-writes-t.patch
+Patch0433: backport-loader-linux-Ensure-the-newc-pathname-is-NULL-termin.patch
+Patch0434: backport-kern-file-Fix-error-handling-in-grub_file_open.patch
+Patch0435: backport-fs-xfs-Fix-memory-leaks-in-XFS-module.patch
+Patch0436: backport-fs-squash4-Fix-memory-leaks-in-grub_squash_iterate_d.patch
+Patch0437: backport-fs-iso9660-Fix-memory-leaks-in-grub_iso9660_susp_ite.patch

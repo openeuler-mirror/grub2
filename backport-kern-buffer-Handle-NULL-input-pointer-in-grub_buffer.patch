@@ -1,0 +1,42 @@
+From 82ff9faa5bff5b3669bc4144bfc9b2279d344483 Mon Sep 17 00:00:00 2001
+From: Jagannathan Raman <jag.raman@oracle.com>
+Date: Mon, 17 Oct 2022 14:04:39 +0000
+Subject: [PATCH] kern/buffer: Handle NULL input pointer in grub_buffer_free()
+
+The grub_buffer_free() should handle NULL input pointer, similar to
+grub_free(). If the pointer is not referencing any memory location,
+grub_buffer_free() need not perform any function.
+
+Fixes: CID 396931
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=82ff9faa5bff5b3669bc4144bfc9b2279d344483
+Conflict:NA
+
+Signed-off-by: Jagannathan Raman <jag.raman@oracle.com>
+Reviewed-by: Ross Philipson <ross.philipson@oracle.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/kern/buffer.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/grub-core/kern/buffer.c b/grub-core/kern/buffer.c
+index 9f5f8b867..a2587729c 100644
+--- a/grub-core/kern/buffer.c
++++ b/grub-core/kern/buffer.c
+@@ -49,8 +49,11 @@ grub_buffer_new (grub_size_t sz)
+ void
+ grub_buffer_free (grub_buffer_t buf)
+ {
+-  grub_free (buf->data);
+-  grub_free (buf);
++  if (buf != NULL)
++    {
++	grub_free (buf->data);
++	grub_free (buf);
++    }
+ }
+ 
+ grub_err_t
+-- 
+2.28.0.windows.1
+
