@@ -1,0 +1,83 @@
+From 77afd25f8065bfbf5cc7848855006cd5260aeb9f Mon Sep 17 00:00:00 2001
+From: Ryan Cohen <rcohenprogramming@gmail.com>
+Date: Sat, 26 Nov 2022 17:22:52 -0500
+Subject: [PATCH] normal/cmdline: Fix two related integer underflows
+
+An unchecked decrement operation in cl_print() would cause a few
+integers to underflow. Where an output terminal's state is stored in
+cl_term, the values cl_term->ystart and cl_term->pos.y both underflow.
+
+This can be replicated with the following steps:
+
+1. Get to the GRUB command line
+2. Hold down the "d" key (or any key that enters a visible character)
+   until it fills the entire row
+3. Press "HOME" and then press "CTRL-k". This will clear every
+   character entered in step 2
+4. Continuously press "CTRL-y" until the terminal scrolls the original
+   prompt ("grub> ") passed the terminal's top row. Now, no prompt
+   should be visible. This step causes cl_term->ystart to underflow
+5. Press "HOME" and then "d" (or any visible character). This can have
+   different visual effects for different systems, but it will always
+   cause cl_term->pos.y to underflow
+
+On BIOS systems, these underflows cause the output terminal to
+completely stop displaying anything. Characters can still be
+entered and commands can be run, but nothing will display on the
+terminal. From here, you can only get the display working by running
+a command to switch the current output terminal to a different type:
+
+terminal_output <OTHER_TERMINAL>
+
+On UEFI systems, these replication steps do not break the output
+terminal. Until you press "ENTER", the cursor stops responding to input,
+but you can press "ENTER" after step 5 and the command line will
+work properly again. This patch is mostly important for BIOS systems
+where the output terminal is rendered unusable after the underflows
+occur.
+
+This patch adds two checks, one for each variable. It ensures that
+cl_term->ystart does not decrement passed 0. It also ensures that
+cl_term->pos.y does not get set passed the terminal's bottom row.
+
+When the previously listed replication steps are followed with this
+patch, the terminal's cursor will be set to the top row and the command
+line is still usable, even on BIOS systems.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=77afd25f8065bfbf5cc7848855006cd5260aeb9f
+Conflict:NA
+
+Signed-off-by: Ryan Cohen <rcohenprogramming@gmail.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/normal/cmdline.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/grub-core/normal/cmdline.c b/grub-core/normal/cmdline.c
+index 61f098244..9c6d9ade9 100644
+--- a/grub-core/normal/cmdline.c
++++ b/grub-core/normal/cmdline.c
+@@ -219,6 +219,8 @@ cl_set_pos (struct cmdline_term *cl_term, grub_size_t lpos)
+   cl_term->pos.x = (cl_term->prompt_len + lpos) % cl_term->width;
+   cl_term->pos.y = cl_term->ystart
+     + (cl_term->prompt_len + lpos) / cl_term->width;
++  if (cl_term->pos.y >= cl_term->height)
++    cl_term->pos.y = cl_term->height - 1;
+   grub_term_gotoxy (cl_term->term, cl_term->pos);
+ }
+ 
+@@ -248,7 +250,10 @@ cl_print (struct cmdline_term *cl_term, grub_uint32_t c,
+ 	{
+ 	  cl_term->pos.x = 0;
+ 	  if (cl_term->pos.y >= (unsigned) (cl_term->height - 1))
+-	    cl_term->ystart--;
++	    {
++	      if (cl_term->ystart > 0)
++		cl_term->ystart--;
++	    }
+ 	  else
+ 	    cl_term->pos.y++;
+ 	  grub_putcode ('\n', cl_term->term);
+-- 
+2.28.0.windows.1
+
