@@ -1,0 +1,30 @@
+From 7dccf456ce7fe693c6e488a812dc8f14ea592eeb Mon Sep 17 00:00:00 2001
+From: mengyingkun <mengyingkun@loongson.cn>
+Date: Wed, 22 Mar 2023 09:29:42 +0800
+Subject: [PATCH] loongarch: Implement cache synchronization operation
+
+When the module is loaded, ICACHE and DCACHE need to flush
+before calling init function. If the caches are not flushed,
+loader will crash unexpectedly.
+
+Signed-off-by: mengyingkun <mengyingkun@loongson.cn>
+---
+ grub-core/kern/loongarch64/cache.S | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/grub-core/kern/loongarch64/cache.S b/grub-core/kern/loongarch64/cache.S
+index d291c67..6e32d37 100644
+--- a/grub-core/kern/loongarch64/cache.S
++++ b/grub-core/kern/loongarch64/cache.S
+@@ -19,6 +19,8 @@
+ #include <grub/symbol.h>
+ 
+ FUNCTION (grub_arch_sync_caches)
++	ibar	0
++	dbar	0
+ 	jr	$ra
+ 
+ FUNCTION (grub_arch_sync_dma_caches)
+-- 
+2.33.0
+
