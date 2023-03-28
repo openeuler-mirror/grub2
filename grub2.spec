@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	30
+Release:	31
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -442,6 +442,22 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Wed Mar 22 2023 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.04-31
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:disk/diskfilter: Check calloc() result for NULL
+       kern/buffer: Handle NULL input pointer in grub_buffer_free()
+       disk/diskfilter: Don't make a RAID array with more than 1024 disks
+       loader/multiboot_elfxx: Fix memory leak
+       loader/linux: Ensure the newc pathname is NULL-terminated
+       term/i386/pc/vga_text: Prevent out-of-bounds writes to VGA text buffer
+       normal/cmdline: Fix two related integer underflows
+       fs/iso9660: Fix memory leaks in grub_iso9660_susp_iterate()
+       fs/squash4: Fix memory leaks in grub_squash_iterate_dir()
+       fs/xfs: Fix memory leaks in XFS module
+       kern/file: Fix error handling in grub_file_open()
+
 * Tue Feb 28 2023 fengtao <fengtao40@huawei.com> - 1:2.04-30
 - Type:feature
 - CVE:NA
