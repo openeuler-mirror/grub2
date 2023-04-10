@@ -1,0 +1,95 @@
+From 8f41d35fcecb65746b60aaa99936cbbdf5fb27ba Mon Sep 17 00:00:00 2001
+From: Lidong Chen <lidong.chen@oracle.com>
+Date: Wed, 1 Feb 2023 17:08:44 +0100
+Subject: fs/iso9660: Prevent read past the end of system use area
+
+In the code, the for loop advanced the entry pointer to the next entry before
+checking if the next entry is within the system use area boundary. Another
+issue in the code was that there is no check for the size of system use area.
+For a corrupted system, the size of system use area can be less than the size
+of minimum SUSP entry size (4 bytes). These can cause buffer overrun. The fixes
+added the checks to ensure the read is valid and within the boundary.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=8f41d35fcecb65746b60aaa99936cbbdf5fb27ba
+Conflict:NA
+
+Signed-off-by: Lidong Chen <lidong.chen@oracle.com>
+Reviewed-by: Thomas Schmitt <scdbackup@gmx.net>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/fs/iso9660.c | 30 +++++++++++++++++++++++++++---
+ 1 file changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/grub-core/fs/iso9660.c b/grub-core/fs/iso9660.c
+index 24d84a5..230048a 100644
+--- a/grub-core/fs/iso9660.c
++++ b/grub-core/fs/iso9660.c
+@@ -49,6 +49,8 @@ GRUB_MOD_LICENSE ("GPLv3+");
+ #define GRUB_ISO9660_VOLDESC_PART	3
+ #define GRUB_ISO9660_VOLDESC_END	255
+ 
++#define GRUB_ISO9660_SUSP_HEADER_SZ	4
++
+ /* The head of a volume descriptor.  */
+ struct grub_iso9660_voldesc
+ {
+@@ -272,6 +274,9 @@ grub_iso9660_susp_iterate (grub_fshelp_node_t node, grub_off_t off,
+   if (sua_size <= 0)
+     return GRUB_ERR_NONE;
+ 
++  if (sua_size < GRUB_ISO9660_SUSP_HEADER_SZ)
++    return grub_error (GRUB_ERR_BAD_FS, "invalid susp entry size");
++
+   sua = grub_malloc (sua_size);
+   if (!sua)
+     return grub_errno;
+@@ -284,10 +289,14 @@ grub_iso9660_susp_iterate (grub_fshelp_node_t node, grub_off_t off,
+       return err;
+     }
+ 
+-  for (entry = (struct grub_iso9660_susp_entry *) sua; (char *) entry < (char *) sua + sua_size - 1 && entry->len > 0;
+-       entry = (struct grub_iso9660_susp_entry *)
+-	 ((char *) entry + entry->len))
++  entry = (struct grub_iso9660_susp_entry *) sua;
++
++  while (entry->len > 0)
+     {
++      /* Ensure the entry is within System Use Area. */
++      if ((char *) entry + entry->len > (sua + sua_size))
++        break;
++
+       /* The last entry.  */
+       if (grub_strncmp ((char *) entry->sig, "ST", 2) == 0)
+ 	break;
+@@ -303,6 +312,16 @@ grub_iso9660_susp_iterate (grub_fshelp_node_t node, grub_off_t off,
+ 	  off = grub_le_to_cpu32 (ce->off);
+ 	  ce_block = grub_le_to_cpu32 (ce->blk) << GRUB_ISO9660_LOG2_BLKSZ;
+ 
++	  if (sua_size <= 0)
++	    break;
++
++	  if (sua_size < GRUB_ISO9660_SUSP_HEADER_SZ)
++	    {
++	      grub_free (sua);
++	      return grub_error (GRUB_ERR_BAD_FS,
++			         "invalid continuation area in CE entry");
++	    }
++
+ 	  grub_free (sua);
+ 	  sua = grub_malloc (sua_size);
+ 	  if (!sua)
+@@ -325,6 +344,11 @@ grub_iso9660_susp_iterate (grub_fshelp_node_t node, grub_off_t off,
+ 	  grub_free (sua);
+ 	  return 0;
+ 	}
++
++      entry = (struct grub_iso9660_susp_entry *) ((char *) entry + entry->len);
++
++      if (((sua + sua_size) - (char *) entry) < GRUB_ISO9660_SUSP_HEADER_SZ)
++        break;
+     }
+ 
+   grub_free (sua);
+-- 
+cgit v1.1
+

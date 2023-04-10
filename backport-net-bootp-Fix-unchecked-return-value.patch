@@ -1,0 +1,37 @@
+From 4f7d77d7e0740c1b0d69c7a658b5c4986eda0093 Mon Sep 17 00:00:00 2001
+From: Alec Brown <alec.r.brown@oracle.com>
+Date: Fri, 3 Feb 2023 17:18:14 -0500
+Subject: net/bootp: Fix unchecked return value
+
+In the function send_dhcp_packet(), added an error check for the return
+value of grub_netbuff_push().
+
+Fixes: CID 404614
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=4f7d77d7e0740c1b0d69c7a658b5c4986eda0093
+Conflict:NA
+
+Signed-off-by: Alec Brown <alec.r.brown@oracle.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/net/bootp.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/grub-core/net/bootp.c b/grub-core/net/bootp.c
+index 2e3c86e..6b07a4a 100644
+--- a/grub-core/net/bootp.c
++++ b/grub-core/net/bootp.c
+@@ -727,7 +727,9 @@ send_dhcp_packet (struct grub_net_network_level_interface *iface)
+ 
+   grub_memcpy (&pack->mac_addr, &iface->hwaddress.mac, pack->hw_len);
+ 
+-  grub_netbuff_push (nb, sizeof (*udph));
++  err = grub_netbuff_push (nb, sizeof (*udph));
++  if (err)
++    goto out;
+ 
+   udph = (struct udphdr *) nb->data;
+   udph->src = grub_cpu_to_be16_compile_time (68);
+-- 
+2.19.1
+

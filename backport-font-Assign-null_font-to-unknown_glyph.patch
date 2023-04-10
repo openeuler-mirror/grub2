@@ -1,0 +1,33 @@
+From f6806966478c601a96e1f3e0e5e85cf5036555c0 Mon Sep 17 00:00:00 2001
+From: Zhang Boyang <zhangboyang.id@gmail.com>
+Date: Mon, 5 Dec 2022 19:29:37 +0800
+Subject: font: Assign null_font to unknown_glyph
+
+Like glyphs in ascii_font_glyph[], assign null_font to
+unknown_glyph->font in order to prevent grub_font_get_*() from
+dereferencing NULL pointer.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=f6806966478c601a96e1f3e0e5e85cf5036555c0
+Conflict:NA
+
+Signed-off-by: Zhang Boyang <zhangboyang.id@gmail.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/font/font.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/grub-core/font/font.c b/grub-core/font/font.c
+index 19a47f8..674043d 100644
+--- a/grub-core/font/font.c
++++ b/grub-core/font/font.c
+@@ -177,6 +177,7 @@ grub_font_loader_init (void)
+   unknown_glyph->offset_x = 0;
+   unknown_glyph->offset_y = -3;
+   unknown_glyph->device_width = 8;
++  unknown_glyph->font = &null_font;
+   grub_memcpy (unknown_glyph->bitmap,
+ 	       unknown_glyph_bitmap, sizeof (unknown_glyph_bitmap));
+ 
+-- 
+cgit v1.1
+
