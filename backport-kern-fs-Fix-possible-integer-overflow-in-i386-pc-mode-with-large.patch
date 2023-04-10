@@ -1,0 +1,37 @@
+From 1a241e050652472efa62b2b36ad2fa7f82427b83 Mon Sep 17 00:00:00 2001
+From: Maxim Fomin <maxim@fomin.one>
+Date: Wed, 28 Dec 2022 17:40:06 +0000
+Subject: kern/fs: Fix possible integer overflow in i386-pc mode with large
+ partitions
+
+The i386-pc mode supports MBR partition scheme where maximum partition
+size is 2 TiB. In case of large partitions left shift expression with
+unsigned long int "length" object may cause integer overflow making
+calculated partition size less than true value. This issue is fixed by
+increasing the size of "length" integer type.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=1a241e050652472efa62b2b36ad2fa7f82427b83
+Conflict:NA
+
+Signed-off-by: Maxim Fomin <maxim@fomin.one>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/kern/fs.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/grub-core/kern/fs.c b/grub-core/kern/fs.c
+index b950829..7ad0aaf 100644
+--- a/grub-core/kern/fs.c
++++ b/grub-core/kern/fs.c
+@@ -130,7 +130,7 @@ grub_fs_probe (grub_device_t device)
+ struct grub_fs_block
+ {
+   grub_disk_addr_t offset;
+-  unsigned long length;
++  grub_disk_addr_t length;
+ };
+ 
+ static grub_err_t
+-- 
+cgit v1.1
+
