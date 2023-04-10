@@ -1,0 +1,40 @@
+From d7ed2ebcd69df123fde8ae1ba9163e2b93c47bbf Mon Sep 17 00:00:00 2001
+From: Zhang Boyang <zhangboyang.id@gmail.com>
+Date: Mon, 5 Dec 2022 19:29:36 +0800
+Subject: font: Check return value of grub_malloc() in ascii_glyph_lookup()
+
+There is a problem in ascii_glyph_lookup(). It doesn't check the return
+value of grub_malloc(). If memory can't be allocated, then NULL pointer
+will be written to.
+
+This patch fixes the problem by fallbacking to unknown_glyph when
+grub_malloc() returns NULL.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=d7ed2ebcd69df123fde8ae1ba9163e2b93c47bbf
+Conflict:NA
+
+Signed-off-by: Zhang Boyang <zhangboyang.id@gmail.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/font/font.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/grub-core/font/font.c b/grub-core/font/font.c
+index 3821937..19a47f8 100644
+--- a/grub-core/font/font.c
++++ b/grub-core/font/font.c
+@@ -131,6 +131,11 @@ ascii_glyph_lookup (grub_uint32_t code)
+ 	{
+ 	  ascii_font_glyph[current] =
+ 	    grub_malloc (sizeof (struct grub_font_glyph) + ASCII_BITMAP_SIZE);
++	  if (ascii_font_glyph[current] == NULL)
++	    {
++	      ascii_font_glyph[current] = unknown_glyph;
++	      continue;
++	    }
+ 
+ 	  ascii_font_glyph[current]->width = 8;
+ 	  ascii_font_glyph[current]->height = 16;
+-- 
+cgit v1.1
+

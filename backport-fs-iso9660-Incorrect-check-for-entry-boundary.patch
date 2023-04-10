@@ -1,0 +1,53 @@
+From 77f657dc9e67a1fd6b1941609a4ed798e99bcae2 Mon Sep 17 00:00:00 2001
+From: Lidong Chen <lidong.chen@oracle.com>
+Date: Fri, 20 Jan 2023 19:39:41 +0000
+Subject: fs/iso9660: Incorrect check for entry boundary
+
+An SL entry consists of the entry info and the component area.
+The entry info should take up 5 bytes instead of sizeof(*entry).
+The area after the first 5 bytes is the component area. It is
+incorrect to use the sizeof(*entry) to check the entry boundary.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=77f657dc9e67a1fd6b1941609a4ed798e99bcae2
+Conflict:NA
+
+Signed-off-by: Lidong Chen <lidong.chen@oracle.com>
+Reviewed-by: Thomas Schmitt <scdbackup@gmx.net>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/fs/iso9660.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/grub-core/fs/iso9660.c b/grub-core/fs/iso9660.c
+index ecf6bbe..64ea3d4 100644
+--- a/grub-core/fs/iso9660.c
++++ b/grub-core/fs/iso9660.c
+@@ -669,10 +669,23 @@ susp_iterate_dir (struct grub_iso9660_susp_entry *entry,
+   else if (grub_strncmp ("SL", (char *) entry->sig, 2) == 0)
+     {
+       unsigned int pos = 1;
++      unsigned int csize;
+ 
+-      /* The symlink is not stored as a POSIX symlink, translate it.  */
+-      while (pos + sizeof (*entry) < entry->len)
++      /* The symlink is not stored as a POSIX symlink, translate it. */
++      while ((pos + GRUB_ISO9660_SUSP_HEADER_SZ + 1) < entry->len)
+ 	{
++	  /*
++	   * entry->len is GRUB_ISO9660_SUSP_HEADER_SZ + 1 (the FLAGS) +
++	   * length of the "Component Area". The length of a component
++	   * record is 2 (pos and pos + 1) plus the "Component Content",
++	   * of which starts at pos + 2. entry->data[pos] is the
++	   * "Component Flags"; entry->data[pos + 1] is the length
++	   * of the component.
++	   */
++          csize = entry->data[pos + 1] + 2;
++          if (GRUB_ISO9660_SUSP_HEADER_SZ + 1 + csize > entry->len)
++            break;
++
+ 	  /* The current position is the `Component Flag'.  */
+ 	  switch (entry->data[pos] & 30)
+ 	    {
+-- 
+cgit v1.1
+
