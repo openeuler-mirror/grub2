@@ -1,0 +1,36 @@
+From faca60df7686a9a3ad9693e8a7b2c6a3a823d133 Mon Sep 17 00:00:00 2001
+From: Zhang Boyang <zhangboyang.id@gmail.com>
+Date: Mon, 5 Dec 2022 19:29:38 +0800
+Subject: font: Reject fonts with negative max_char_width or max_char_height
+
+If max_char_width or max_char_height are negative wrong values can be propagated
+by grub_font_get_max_char_width() or grub_font_get_max_char_height(). Prevent
+this from happening.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=faca60df7686a9a3ad9693e8a7b2c6a3a823d133
+Conflict:NA
+
+Signed-off-by: Zhang Boyang <zhangboyang.id@gmail.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/font/font.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/grub-core/font/font.c b/grub-core/font/font.c
+index 674043d..24adcb3 100644
+--- a/grub-core/font/font.c
++++ b/grub-core/font/font.c
+@@ -644,8 +644,8 @@ grub_font_load (const char *filename)
+ 	       font->max_char_width, font->max_char_height, font->num_chars);
+ #endif
+ 
+-  if (font->max_char_width == 0
+-      || font->max_char_height == 0
++  if (font->max_char_width <= 0
++      || font->max_char_height <= 0
+       || font->num_chars == 0
+       || font->char_index == 0 || font->ascent == 0 || font->descent == 0)
+     {
+-- 
+cgit v1.1
+

@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	31
+Release:	32
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -442,6 +442,23 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Sun Apr 16 2023 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.04-32
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:osdep/linux/hostdisk: Modify sector by sysfs as disk sector
+       net/bootp: Fix unchecked return value
+       fs/iso9660: Avoid reading past the entry boundary
+       fs/iso9660: Incorrect check for entry boundary
+       fs/iso9660: Prevent skipping CE or ST at start of continuation area
+       fs/iso9660: Prevent read past the end of system use area
+       fs/iso9660: Add check to prevent infinite loop
+       gentpl.py: Remove .interp section from .img files
+       kern/fs: Fix possible integer overflow in i386-pc mode with large partitions
+       font: Reject fonts with negative max_char_width or max_char_height
+       font: Assign null_font to unknown_glyph
+       font: Check return value of grub_malloc() in ascii_glyph_lookup()
+
 * Wed Mar 22 2023 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.04-31
 - Type:bugfix
 - CVE:NA
