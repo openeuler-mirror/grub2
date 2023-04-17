@@ -1,0 +1,35 @@
+From b58aa4e2095943303126fff706d73f18f7caab35 Mon Sep 17 00:00:00 2001
+From: Nicholas Vinson <nvinson234@gmail.com>
+Date: Fri, 13 Jan 2023 02:56:35 -0500
+Subject: gentpl.py: Remove .interp section from .img files
+
+When building .img files, a .interp section from the .image files will
+sometimes be copied into the .img file. This additional section pushes
+the .img file beyond the 512-byte limit and causes grub-install to fail
+to run for i386-pc platforms.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=b58aa4e2095943303126fff706d73f18f7caab35
+Conflict:NA
+
+Signed-off-by: Nicholas Vinson <nvinson234@gmail.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ gentpl.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/gentpl.py b/gentpl.py
+index 9f51e4f..88abe5b 100644
+--- a/gentpl.py
++++ b/gentpl.py
+@@ -766,7 +766,7 @@ def image(defn, platform):
+ if test x$(TARGET_APPLE_LINKER) = x1; then \
+   $(MACHO2IMG) $< $@; \
+ else \
+-  $(TARGET_OBJCOPY) $(""" + cname(defn) + """_OBJCOPYFLAGS) --strip-unneeded -R .note -R .comment -R .note.gnu.build-id -R .MIPS.abiflags -R .reginfo -R .rel.dyn -R .note.gnu.gold-version -R .note.gnu.property -R .ARM.exidx $< $@; \
++  $(TARGET_OBJCOPY) $(""" + cname(defn) + """_OBJCOPYFLAGS) --strip-unneeded -R .note -R .comment -R .note.gnu.build-id -R .MIPS.abiflags -R .reginfo -R .rel.dyn -R .note.gnu.gold-version -R .note.gnu.property -R .ARM.exidx -R .interp $< $@; \
+ fi
+ """)
+ 
+-- 
+cgit v1.1
+
