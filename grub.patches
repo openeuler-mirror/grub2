@@ -434,3 +434,15 @@ Patch0433: backport-kern-file-Fix-error-handling-in-grub_file_open.patch
 Patch0434: backport-fs-xfs-Fix-memory-leaks-in-XFS-module.patch
 Patch0435: backport-fs-squash4-Fix-memory-leaks-in-grub_squash_iterate_d.patch
 Patch0436: backport-fs-iso9660-Fix-memory-leaks-in-grub_iso9660_susp_ite.patch
+Patch0437: backport-font-Check-return-value-of-grub_malloc-in-ascii_glyph_lookup.patch
+Patch0438: backport-font-Assign-null_font-to-unknown_glyph.patch
+Patch0439: backport-font-Reject-fonts-with-negative-max_char_width-or-max_char_height.patch
+Patch0440: backport-kern-fs-Fix-possible-integer-overflow-in-i386-pc-mode-with-large.patch
+Patch0441: backport-gentpl_py-Remove-interp-section-from-img-files.patch
+Patch0442: backport-fs-iso9660-Add-check-to-prevent-infinite-loop.patch
+Patch0443: backport-fs-iso9660-Prevent-read-past-the-end-of-system-use-area.patch
+Patch0444: backport-fs-iso9660-Prevent-skipping-CE-or-ST-at-start-of-continuation-area.patch
+Patch0445: backport-fs-iso9660-Incorrect-check-for-entry-boundary.patch
+Patch0446: backport-fs-iso9660-Avoid-reading-past-the-entry-boundary.patch
+Patch0447: backport-net-bootp-Fix-unchecked-return-value.patch
+Patch0448: backport-osdep-linux-hostdisk-Modify-sector-by-sysfs-as-disk-sector.patch
