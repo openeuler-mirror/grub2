@@ -314,3 +314,15 @@ Patch0307: 0202-rpm-sort-add-prereqs-for-declaration-of-strchrnul.patch
 Patch0308: loongarch-Force-initrd-load-address-64KiB-alignment.patch
 Patch0309: loongarch-Implement-cache-synchronization-operation.patch
 %endif
+Patch0310: backport-font-Check-return-value-of-grub_malloc-in-ascii_glyph_lookup.patch
+Patch0311: backport-font-Assign-null_font-to-unknown_glyph.patch
+Patch0312: backport-font-Reject-fonts-with-negative-max_char_width-or-max_char_height.patch
+Patch0313: backport-kern-fs-Fix-possible-integer-overflow-in-i386-pc-mode-with-large.patch
+Patch0314: backport-gentpl_py-Remove-interp-section-from-img-files.patch
+Patch0315: backport-fs-iso9660-Add-check-to-prevent-infinite-loop.patch
+Patch0316: backport-fs-iso9660-Prevent-read-past-the-end-of-system-use-area.patch
+Patch0317: backport-fs-iso9660-Prevent-skipping-CE-or-ST-at-start-of-continuation-area.patch
+Patch0318: backport-fs-iso9660-Incorrect-check-for-entry-boundary.patch
+Patch0319: backport-fs-iso9660-Avoid-reading-past-the-entry-boundary.patch
+Patch0320: backport-net-bootp-Fix-unchecked-return-value.patch
+Patch0321: backport-osdep-linux-hostdisk-Modify-sector-by-sysfs-as-disk-sector.patch
