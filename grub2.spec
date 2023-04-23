@@ -14,7 +14,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.06
-Release:	28
+Release:	29
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -256,6 +256,7 @@ install -m 0644 docs/grub-boot-indeterminate.service %{buildroot}%{_unitdir}
 ln -s ../grub-boot-indeterminate.service %{buildroot}%{_unitdir}/system-update.target.wants
 
 find %{buildroot}%{_unitdir}/ -type f -exec chmod a-x {} \;
+mkdir %{buildroot}%{_sysconfdir}/default/grub.d
 
 %global finddebugroot "%{_builddir}/%{?buildsubdir}/debug"
 
@@ -349,6 +350,7 @@ fi
 %config %{_sysconfdir}/grub.d/??_*
 %exclude %{_sysconfdir}/grub.d/01_fallback_counting
 %attr(0644,root,root) %ghost %config(noreplace) %{_sysconfdir}/default/grub
+%dir %config(noreplace) %{_sysconfdir}/default/grub.d
 %{_sysconfdir}/grub.d/README
 %{_userunitdir}/*
 %{_unitdir}/grub-boot-indeterminate.service
@@ -439,6 +441,12 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Sun Apr 23 2023 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.06-29
+- Type:requirement
+- CVE:NA
+- SUG:NA
+- DESC:Read /etc/default/grub.d/*.cfg after /etc/default/grub
+
 * Mon Apr 10 2023 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.06-28
 - Type:bugfix
 - CVE:NA
