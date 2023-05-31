@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	32
+Release:	33
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -442,6 +442,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Wed May 31 2023 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.04-33
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:skip verification when not loading grub.cfg
+
 * Sun Apr 16 2023 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.04-32
 - Type:bugfix
 - CVE:NA
