@@ -447,3 +447,4 @@ Patch0446: backport-fs-iso9660-Incorrect-check-for-entry-boundary.patch
 Patch0447: backport-fs-iso9660-Avoid-reading-past-the-entry-boundary.patch
 Patch0448: backport-net-bootp-Fix-unchecked-return-value.patch
 Patch0449: backport-osdep-linux-hostdisk-Modify-sector-by-sysfs-as-disk-sector.patch
+Patch0450: skip-verification-when-not-loading-grub.cfg.patch

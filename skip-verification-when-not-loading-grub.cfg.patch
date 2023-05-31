@@ -1,0 +1,29 @@
+From c8b6446348a445a51024d04b2e8e5b417c3a1f73 Mon Sep 17 00:00:00 2001
+From: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+Date: Wed, 31 May 2023 15:13:07 +0800
+Subject: [PATCH] skip verification when not loading grub.cfg
+
+Skip verification when just opening the grub.cfg without loading it.
+There is no need to verify grub.cfg twice when tpcm is enabled.
+
+Signed-off-by: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+---
+ grub-core/normal/main.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/grub-core/normal/main.c b/grub-core/normal/main.c
+index f7ee912..7a2dd3b 100644
+--- a/grub-core/normal/main.c
++++ b/grub-core/normal/main.c
+@@ -368,7 +368,7 @@ grub_try_normal (const char *variable)
+        if (config)
+          {
+            grub_file_t file;
+-           file = grub_file_open (config, GRUB_FILE_TYPE_CONFIG);
++           file = grub_file_open (config, GRUB_FILE_TYPE_SKIP_SIGNATURE);
+            if (file)
+              {
+                grub_file_close (file);
+-- 
+2.27.0
+
