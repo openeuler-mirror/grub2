@@ -1,0 +1,107 @@
+From f8e4b65322175ac66e0b1392826b1c4b99db38a9 Mon Sep 17 00:00:00 2001
+From: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+Date: Thu, 15 Jun 2023 10:29:32 +0800
+Subject: [PATCH] tpcm: support control switch
+
+Signed-off-by: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+---
+ grub-core/commands/efi/tpcm.c | 38 ++++++++++++++++++++++++++---------
+ include/grub/efi/tpcm.h       |  3 ++-
+ 2 files changed, 30 insertions(+), 11 deletions(-)
+
+diff --git a/grub-core/commands/efi/tpcm.c b/grub-core/commands/efi/tpcm.c
+index 0803b9b..57a4cea 100644
+--- a/grub-core/commands/efi/tpcm.c
++++ b/grub-core/commands/efi/tpcm.c
+@@ -25,6 +25,7 @@ static grub_efi_ipmi_interface_protocol_t *tpcm_ipmi;
+ static grub_efi_uint16_t grub_tcpm_file_type = GRUB_FILE_TYPE_NONE;
+ 
+ static grub_uint32_t bm_stage_base = 2000;
++static grub_efi_uint8_t permissive = 0;
+ 
+ static grub_efi_handle_t
+ grub_efi_service_binding (grub_efi_guid_t *service_binding_guid)
+@@ -325,8 +326,13 @@ grub_tpcm_log_event (unsigned char *buf, grub_size_t size, const char *descripti
+   status = get_firmware_hash_content (buf, size, output);
+   if (status != GRUB_EFI_SUCCESS)
+     {
+-      grub_printf ("get firmware hash content failed\n");
+-      err = GRUB_ERR_BUG;
++      if (permissive)
++        grub_dprintf ("tpcm", "tpcm control switch turned off, ignore get firmware hash content failure.\n");
++      else
++        {
++          grub_printf ("get firmware hash content failed\n");
++          err = GRUB_ERR_BUG;
++        }
+       goto fail;
+     }
+ 
+@@ -338,9 +344,14 @@ grub_tpcm_log_event (unsigned char *buf, grub_size_t size, const char *descripti
+                                        &response_length, NULL);
+   if (status != GRUB_EFI_SUCCESS)
+     {
+-      err = grub_error (GRUB_ERR_BUG,
+-                        "excute_ipmi_cmd failed, request sub_cmd:0x%x, ret:%lu\n",
+-                        request_data->SubCmd, status);
++      if (permissive)
++        grub_dprintf ("tpcm", "tpcm control switch turned off, ignore excute_ipmi_cmd failure.\n");
++      else
++        {
++          err = grub_error (GRUB_ERR_BUG,
++                            "excute_ipmi_cmd failed, request sub_cmd:0x%x, ret:%lu\n",
++                            request_data->SubCmd, status);
++        }
+       goto fail;
+     }
+   grub_dprintf ("tpcm", "send tpcm measure request success\n");
+@@ -348,10 +359,16 @@ grub_tpcm_log_event (unsigned char *buf, grub_size_t size, const char *descripti
+   status = grub_tpcm_request_result ();
+   if (status != GRUB_EFI_SUCCESS)
+     {
+-      err = grub_error (GRUB_ERR_BAD_SIGNATURE, "bad tpcm signature");
+-      goto fail;
++      if (permissive)
++        grub_dprintf ("tpcm", "tpcm control switch turned off, ignore measurement failure.\n");
++      else
++        {
++          err = grub_error (GRUB_ERR_BAD_SIGNATURE, "bad tpcm signature");
++          goto fail;
++        }
+     }
+-  grub_dprintf ("tpcm", "tpcm hash verify success, file:%s\n", description);
++  else
++    grub_dprintf ("tpcm", "tpcm hash verify success, file:%s\n", description);
+ 
+  fail:
+   if (request_data)
+@@ -400,9 +417,10 @@ tpcm_ipmi_get_switch (void)
+       goto out;
+     }
+ 
+-  if (response_data.ControlResult == IPMI_TPCM_OPEN)
++  if (response_data.ControlResult == IPMI_TPCM_OPEN || response_data.ControlResult == IPMI_TPCM_PERMISSIVE)
+     {
+-      grub_dprintf ("tpcm", "tpcm: Enabled\n");
++      permissive = (response_data.ControlResult == IPMI_TPCM_PERMISSIVE) ? 1 : 0;
++      grub_dprintf ("tpcm", "tpcm: Enabled, ControlResult: %d\n", response_data.ControlResult);
+       return 1;
+     }
+ 
+diff --git a/include/grub/efi/tpcm.h b/include/grub/efi/tpcm.h
+index eea1387..b0265e2 100644
+--- a/include/grub/efi/tpcm.h
++++ b/include/grub/efi/tpcm.h
+@@ -158,7 +158,8 @@ typedef enum {
+ typedef enum {
+     IPMI_TPCM_UNKNOW,
+     IPMI_TPCM_OPEN,
+-    IPMI_TPCM_CLOSE
++    IPMI_TPCM_CLOSE,
++    IPMI_TPCM_PERMISSIVE
+ } grub_ipmi_tpcm_result_type;
+ 
+ 
+-- 
+2.27.0
+
