@@ -14,7 +14,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.06
-Release:	29
+Release:	30
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -379,7 +379,6 @@ fi
 %exclude %{_sbindir}/grub2-sparc64-setup
 %exclude %{_sbindir}/grub2-ofpathname
 %endif
-%exclude %{_sbindir}/grub2-ofpathname
 %endif
 
 
@@ -441,6 +440,12 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Thu Jun 15 2023 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.06-30
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:Revert "EFI: allocate kernel in EFI_RUNTIME_SERVICES_CODE
+
 * Sun Apr 23 2023 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.06-29
 - Type:requirement
 - CVE:NA
