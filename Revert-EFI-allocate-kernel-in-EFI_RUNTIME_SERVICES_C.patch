@@ -1,0 +1,85 @@
+From 53b5629c9402e2d504866b6934303a8f8c2a5641 Mon Sep 17 00:00:00 2001
+From: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+Date: Wed, 10 May 2023 19:11:17 +0800
+Subject: [PATCH] Revert "EFI: allocate kernel in EFI_RUNTIME_SERVICES_CODE
+ instead of EFI_LOADER_DATA."
+
+Allocates the kernel code as EFI_RUNTIME_SERVICES_CODE will cause the allocated
+memory to be marked as "reserved" by BIOS, which will result in this memory being
+always unavailable to the kernel.
+
+Let's fix it by reverting backport-EFI-allocate-kernel-in-EFI_RUNTIME_SERVICES_CODE-ins.patch.
+
+Signed-off-by: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+---
+ grub-core/loader/i386/efi/linux.c | 19 ++++++-------------
+ 1 file changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/grub-core/loader/i386/efi/linux.c b/grub-core/loader/i386/efi/linux.c
+index 92b2fb5..9e5c11a 100644
+--- a/grub-core/loader/i386/efi/linux.c
++++ b/grub-core/loader/i386/efi/linux.c
+@@ -86,9 +86,7 @@ kernel_free(void *addr, grub_efi_uintn_t size)
+ }
+ 
+ static void *
+-kernel_alloc(grub_efi_uintn_t size,
+-	     grub_efi_memory_type_t memtype,
+-	     const char * const errmsg)
++kernel_alloc(grub_efi_uintn_t size, const char * const errmsg)
+ {
+   void *addr = 0;
+   unsigned int i;
+@@ -114,7 +112,7 @@ kernel_alloc(grub_efi_uintn_t size,
+       prev_max = max;
+       addr = grub_efi_allocate_pages_real (max, pages,
+ 					   max_addresses[i].alloc_type,
+-					   memtype);
++					   GRUB_EFI_LOADER_DATA);
+       if (addr)
+ 	grub_dprintf ("linux", "Allocated at %p\n", addr);
+     }
+@@ -244,8 +242,7 @@ grub_cmd_initrd (grub_command_t cmd, int argc, char *argv[])
+ 	}
+     }
+ 
+-  initrd_mem = kernel_alloc(size, GRUB_EFI_RUNTIME_SERVICES_DATA,
+-			    N_("can't allocate initrd"));
++  initrd_mem = kernel_alloc(size, N_("can't allocate initrd"));
+   if (initrd_mem == NULL)
+     goto fail;
+   grub_dprintf ("linux", "initrd_mem = %p\n", initrd_mem);
+@@ -396,8 +393,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
+     }
+ #endif
+ 
+-  params = kernel_alloc (sizeof(*params), GRUB_EFI_RUNTIME_SERVICES_DATA,
+-			 "cannot allocate kernel parameters");
++  params = kernel_alloc (sizeof(*params), "cannot allocate kernel parameters");
+   if (!params)
+     goto fail;
+   grub_dprintf ("linux", "params = %p\n", params);
+@@ -419,9 +415,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
+   grub_dprintf ("linux", "new lh is at %p\n", lh);
+ 
+   grub_dprintf ("linux", "setting up cmdline\n");
+-  cmdline = kernel_alloc (lh->cmdline_size + 1,
+-			  GRUB_EFI_RUNTIME_SERVICES_DATA,
+-			  N_("can't allocate cmdline"));
++  cmdline = kernel_alloc (lh->cmdline_size + 1, N_("can't allocate cmdline"));
+   if (!cmdline)
+     goto fail;
+   grub_dprintf ("linux", "cmdline = %p\n", cmdline);
+@@ -467,8 +461,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
+   max_addresses[1].addr = GRUB_EFI_MAX_ALLOCATION_ADDRESS;
+   max_addresses[2].addr = GRUB_EFI_MAX_ALLOCATION_ADDRESS;
+   kernel_size = lh->init_size;
+-  kernel_mem = kernel_alloc (kernel_size, GRUB_EFI_RUNTIME_SERVICES_CODE,
+-			     N_("can't allocate kernel"));
++  kernel_mem = kernel_alloc (kernel_size, N_("can't allocate kernel"));
+   restore_addresses();
+   if (!kernel_mem)
+     goto fail;
+-- 
+2.19.1
+
