@@ -327,3 +327,4 @@ Patch0319: backport-fs-iso9660-Avoid-reading-past-the-entry-boundary.patch
 Patch0320: backport-net-bootp-Fix-unchecked-return-value.patch
 Patch0321: backport-osdep-linux-hostdisk-Modify-sector-by-sysfs-as-disk-sector.patch
 Patch0322: backport-Read-etc-default-grub.d-.cfg-after-etc-default-grub.patch
+Patch0323: Revert-EFI-allocate-kernel-in-EFI_RUNTIME_SERVICES_C.patch
