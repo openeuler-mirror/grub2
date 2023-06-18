@@ -8,7 +8,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.04
-Release:	34
+Release:	35
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -442,6 +442,12 @@ rm -r /boot/grub2.tmp/ || :
 %{_datadir}/man/man*
 
 %changelog
+* Sun Jun 18 2023 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.04-35
+- Type:requirement
+- CVE:NA
+- SUG:NA
+- DESC:tpcm: modify GRUB_IPMI_TIMEOUT_MS from 7000 to 2000
+
 * Wed Jun 14 2023 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.04-34
 - Type:requirement
 - CVE:NA

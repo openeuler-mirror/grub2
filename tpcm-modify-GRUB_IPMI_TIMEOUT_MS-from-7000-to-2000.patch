@@ -1,0 +1,26 @@
+From 77bdd46676a58e77c38efd82eee1817159ec031b Mon Sep 17 00:00:00 2001
+From: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+Date: Sun, 18 Jun 2023 15:46:37 +0800
+Subject: [PATCH] tpcm: modify GRUB_IPMI_TIMEOUT_MS from 7000 to 2000
+
+Signed-off-by: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+---
+ include/grub/efi/tpcm.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/grub/efi/tpcm.h b/include/grub/efi/tpcm.h
+index b0265e2..d4cf93b 100644
+--- a/include/grub/efi/tpcm.h
++++ b/include/grub/efi/tpcm.h
+@@ -26,7 +26,7 @@
+ #define FIRMWARE_VERSION_SIZE       32
+ #define FIRMWARE_HASH_CONTENT_SIZE  32
+ #define FIRMWARE_NAME_SIZE          32
+-#define GRUB_IPMI_TIMEOUT_MS        7000
++#define GRUB_IPMI_TIMEOUT_MS        2000
+ 
+ // LUN
+ #define IPMI_BMC_LUN                0x00
+-- 
+2.33.0
+
