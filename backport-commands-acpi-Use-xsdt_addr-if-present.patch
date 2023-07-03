@@ -1,0 +1,38 @@
+From b2b477e6b23a207321e2f9d7fde1a1624ef318dc Mon Sep 17 00:00:00 2001
+From: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+Date: Tue, 13 Jun 2023 11:17:36 +0800
+Subject: [PATCH] commands/acpi: Use xsdt_addr if present
+
+According to the ACPI specification, in ACPI 2.0 or later, an
+ACPI-compatible OS must use the XSDT if present. So, we should
+use xsdt_addr instead of rsdt_addr if xsdt_addr is valid.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit/?id=b2b477e6b23a207321e2f9d7fde1a1624ef318dc
+Conflict:NA
+
+Signed-off-by: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/commands/acpi.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/grub-core/commands/acpi.c b/grub-core/commands/acpi.c
+index deec4bb43..1c034463c 100644
+--- a/grub-core/commands/acpi.c
++++ b/grub-core/commands/acpi.c
+@@ -514,7 +514,11 @@ grub_cmd_acpi (struct grub_extcmd_context *ctxt, int argc, char **args)
+       /* Set revision variables to replicate the same version as host. */
+       rev1 = ! rsdp->revision;
+       rev2 = rsdp->revision;
+-      rsdt = (struct grub_acpi_table_header *) (grub_addr_t) rsdp->rsdt_addr;
++      if (rev2 && ((struct grub_acpi_table_header *) (grub_addr_t) ((struct grub_acpi_rsdp_v20 *) rsdp)->xsdt_addr) != NULL)
++	rsdt = (struct grub_acpi_table_header *) (grub_addr_t) ((struct grub_acpi_rsdp_v20 *) rsdp)->xsdt_addr;
++      else
++	rsdt = (struct grub_acpi_table_header *) (grub_addr_t) rsdp->rsdt_addr;
++
+       /* Load host tables. */
+       for (entry_ptr = (grub_uint32_t *) (rsdt + 1);
+ 	   entry_ptr < (grub_uint32_t *) (((grub_uint8_t *) rsdt)
+-- 
+2.27.0
+
