@@ -1,0 +1,50 @@
+From 4fb58cf0afe83d921e1072d58a4f899696d8fe7e Mon Sep 17 00:00:00 2001
+From: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+Date: Tue, 13 Jun 2023 11:20:51 +0800
+Subject: [PATCH] kern/acpi: Use xsdt_addr if present
+
+According to the ACPI specification, in ACPI 2.0 or later, an
+ACPI-compatible OS must use the XSDT if present. So, we should
+use xsdt_addr instead of rsdt_addr if xsdt_addr is valid.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit/?id=4fb58cf0afe83d921e1072d58a4f899696d8fe7e
+Conflict:NA
+
+Signed-off-by: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/kern/acpi.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/grub-core/kern/acpi.c b/grub-core/kern/acpi.c
+index 5746ac0..524c402 100644
+--- a/grub-core/kern/acpi.c
++++ b/grub-core/kern/acpi.c
+@@ -99,12 +99,6 @@ grub_acpi_find_fadt (void)
+   if (fadt)
+     return fadt;
+   rsdpv2 = grub_machine_acpi_get_rsdpv2 ();
+-  if (rsdpv2)
+-    fadt = grub_acpi_rsdt_find_table ((struct grub_acpi_table_header *)
+-				      (grub_addr_t) rsdpv2->rsdpv1.rsdt_addr,
+-				      GRUB_ACPI_FADT_SIGNATURE);
+-  if (fadt)
+-    return fadt;
+   if (rsdpv2
+ #if GRUB_CPU_SIZEOF_VOID_P != 8
+       && !(rsdpv2->xsdt_addr >> 32)
+@@ -115,5 +109,11 @@ grub_acpi_find_fadt (void)
+ 				      GRUB_ACPI_FADT_SIGNATURE);
+   if (fadt)
+     return fadt;
++  if (rsdpv2)
++    fadt = grub_acpi_rsdt_find_table ((struct grub_acpi_table_header *)
++				      (grub_addr_t) rsdpv2->rsdpv1.rsdt_addr,
++				      GRUB_ACPI_FADT_SIGNATURE);
++  if (fadt)
++    return fadt;
+   return 0;
+ }
+-- 
+2.27.0
+
