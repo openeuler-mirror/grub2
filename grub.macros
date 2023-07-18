@@ -14,7 +14,7 @@
 %global ccpath %{__cc}
 %endif
 
-%global cc_equals "CC=%{ccpath} -fPIE"
+%global cc_equals "CC=%{ccpath} -fPIE -Wl,-z,noexecstack"
 
 %global cflags_sed						\\\
 	sed							\\\
