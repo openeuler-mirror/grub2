@@ -330,3 +330,4 @@ Patch0322: backport-Read-etc-default-grub.d-.cfg-after-etc-default-grub.patch
 Patch0323: Revert-EFI-allocate-kernel-in-EFI_RUNTIME_SERVICES_C.patch
 Patch0324: backport-commands-acpi-Use-xsdt_addr-if-present.patch
 Patch0325: backport-kern-acpi-Use-xsdt_addr-if-present.patch
+Patch0326: remove-the-items-of-unsupported-filesystems-in-fs.ls.patch
