@@ -1,0 +1,276 @@
+From 3881d41c2fcd1eece2faca8b08577e8e8b30257c Mon Sep 17 00:00:00 2001
+From: Yingkun Meng <mengyingkun@loongson.cn>
+Date: Mon, 7 Aug 2023 11:47:54 +0800
+Subject: [PATCH] loongarch: Fix the initrd parameter passing
+
+When booting with EFI kernel, the kernel can't get
+initrd parameter, resulting in the inability to
+find the initrd.
+
+Change-Id: I61c6cee35853cd3ee5ce98a0bce949f6833d85b1
+Signed-off-by: Yingkun Meng <mengyingkun@loongson.cn>
+---
+ grub-core/loader/loongarch64/linux-efi.c | 44 +---------------
+ grub-core/loader/loongarch64/linux-elf.c | 53 +++----------------
+ grub-core/loader/loongarch64/linux.c     | 66 ++++++++++++++++++++++++
+ include/grub/loongarch64/linux.h         |  6 +++
+ 4 files changed, 80 insertions(+), 89 deletions(-)
+
+diff --git a/grub-core/loader/loongarch64/linux-efi.c b/grub-core/loader/loongarch64/linux-efi.c
+index 4dcefd9d9e27..8e2726163725 100644
+--- a/grub-core/loader/loongarch64/linux-efi.c
++++ b/grub-core/loader/loongarch64/linux-efi.c
+@@ -16,11 +16,9 @@
+  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
+  */
+ #include <grub/linux.h>
+-#include <grub/fdt.h>
+ #include <grub/efi/efi.h>
+ #include <grub/cpu/linux.h>
+ #include <grub/efi/memory.h>
+-#include <grub/efi/fdtload.h>
+ #include <grub/charset.h>
+ 
+ #define GRUB_EFI_PE_MAGIC	0x5A4D
+@@ -28,47 +26,7 @@
+ grub_err_t
+ finalize_efi_params_linux (struct linux_loongarch64_kernel_params *kernel_params)
+ {
+-  int node, retval;
+-
+-  void *fdt;
+-
+-  fdt = grub_fdt_load (GRUB_EFI_LINUX_FDT_EXTRA_SPACE);
+-
+-  if (!fdt)
+-    goto failure;
+-
+-  node = grub_fdt_find_subnode (fdt, 0, "chosen");
+-  if (node < 0)
+-    node = grub_fdt_add_subnode (fdt, 0, "chosen");
+-
+-  if (node < 1)
+-    goto failure;
+-
+-  /* Set initrd info */
+-  if (kernel_params->ramdisk_addr && kernel_params->ramdisk_size)
+-    {
+-      grub_dprintf ("linux", "Initrd @ %p-%p\n",
+-		    (void *) kernel_params->ramdisk_addr,
+-		    (void *) (kernel_params->ramdisk_addr + kernel_params->ramdisk_size));
+-
+-      retval = grub_fdt_set_prop64 (fdt, node, "linux,initrd-start",
+-				    kernel_params->ramdisk_addr);
+-      if (retval)
+-	goto failure;
+-      retval = grub_fdt_set_prop64 (fdt, node, "linux,initrd-end",
+-				    kernel_params->ramdisk_addr + kernel_params->ramdisk_size);
+-      if (retval)
+-	goto failure;
+-    }
+-
+-  if (grub_fdt_install() != GRUB_ERR_NONE)
+-    goto failure;
+-
+-  return GRUB_ERR_NONE;
+-
+-failure:
+-  grub_fdt_unload();
+-  return grub_error(GRUB_ERR_BAD_OS, "failed to install/update FDT");
++  return grub_loongarch_setup_initrd_params();
+ }
+ 
+ grub_err_t
+diff --git a/grub-core/loader/loongarch64/linux-elf.c b/grub-core/loader/loongarch64/linux-elf.c
+index 86a90e76b4c3..28d3c90ad6e6 100644
+--- a/grub-core/loader/loongarch64/linux-elf.c
++++ b/grub-core/loader/loongarch64/linux-elf.c
+@@ -308,54 +308,22 @@ allocate_memmap_and_exit_boot (struct linux_loongarch64_kernel_params *kernel_pa
+   grub_efi_memory_descriptor_t *mmap_buf;
+   grub_efi_boot_services_t *b;
+   struct efi_boot_memmap *m, tmp;
+-  struct efi_initrd *tbl = NULL;
+   grub_efi_guid_t boot_memmap_guid = GRUB_EFI_LARCH_BOOT_MEMMAP_GUID;
+-  grub_efi_guid_t initrd_media_guid = GRUB_EFI_LARCH_INITRD_MEDIA_GUID;
+ 
+   setup_screen_info();
+ 
+-  b = grub_efi_system_table->boot_services;
+-
+   grub_dprintf ("loongson", "ramdisk_addr:0x%"PRIxGRUB_UINT64_T", \
+           size:0x%"PRIxGRUB_UINT64_T"\n",
+           kernel_params->ramdisk_addr,
+           kernel_params->ramdisk_size);
+-#if 0
+-  char string[64];
+ 
+-  /* Set initrd info to cmdline*/
+-  if (kernel_params->ramdisk_addr && kernel_params->ramdisk_size)
+-  {
+-    grub_printf ( "Initrd @ %p-%p\n",
+-            (void *) kernel_params->ramdisk_addr,
+-            (void *) (kernel_params->ramdisk_addr + kernel_params->ramdisk_size));
+-    /* initrd */
+-    grub_snprintf (string,
+-         sizeof (GRUB_INITRD_STRING),
+-         "initrd=0x%lx,0x%lx",
+-         ((grub_uint64_t) kernel_params->ramdisk_addr & 0xffffffff),
+-         (grub_uint64_t) kernel_params->ramdisk_size);
+-    *(char*) ((grub_addr_t) kernel_params->linux_args + kernel_params->ramdisk_args_len - 2) = ' ';
+-    grub_memcpy ((char*) ((grub_addr_t) kernel_params->linux_args + kernel_params->ramdisk_args_len - 1),
+-            string, sizeof (GRUB_INITRD_STRING));
+-  }
+-#else
+   /* Set initrd info to system table*/
+-  if (kernel_params->ramdisk_addr && kernel_params->ramdisk_size)
+-  {
+-    tbl = grub_efi_allocate_any_pages (GRUB_EFI_BYTES_TO_PAGES (sizeof(struct efi_initrd)));
+-    if (!tbl)
+-      return grub_error (GRUB_ERR_IO, "cannot allocate tbl memory");
+-    tbl->base = kernel_params->ramdisk_addr;
+-    tbl->size = kernel_params->ramdisk_size;
+-
+-    status = b->install_configuration_table (&initrd_media_guid, tbl);
+-    if (status != GRUB_EFI_SUCCESS) {
+-      grub_error (GRUB_ERR_IO, "failed to install initrd media");
+-      goto free_tbl;
++  err = grub_loongarch_setup_initrd_params();
++  if (err != GRUB_ERR_NONE)
++    {
++      grub_error(GRUB_ERR_IO, "failed to install initrd media");
++      return err;
+     }
+-  }
+-#endif
+ 
+   tmp.map_size = 0;
+   status = grub_efi_get_memory_map (&tmp.map_size, NULL, &tmp.map_key,
+@@ -371,6 +339,7 @@ allocate_memmap_and_exit_boot (struct linux_loongarch64_kernel_params *kernel_pa
+     goto uninstall_initrd_table;
+   }
+ 
++  b = grub_efi_system_table->boot_services;
+   status = b->install_configuration_table (&boot_memmap_guid, m);
+   if (status != GRUB_EFI_SUCCESS) {
+     grub_error (GRUB_ERR_IO, "failed to install boot memmap");
+@@ -414,15 +383,7 @@ free_m:
+                GRUB_EFI_BYTES_TO_PAGES (sizeof(*m) + size));
+ 
+ uninstall_initrd_table:
+-  if (kernel_params->ramdisk_addr && kernel_params->ramdisk_size)
+-    b->install_configuration_table (&initrd_media_guid, NULL);
+-
+-free_tbl:
+-  if (kernel_params->ramdisk_addr && kernel_params->ramdisk_size) {
+-    if (tbl)
+-      grub_efi_free_pages ((grub_addr_t) tbl,
+-               GRUB_EFI_BYTES_TO_PAGES (sizeof(struct efi_initrd)));
+-  }
++  grub_loongarch_remove_initrd_params();
+ 
+   return grub_error(GRUB_ERR_BAD_OS, "failed to V40 boot");
+ }
+diff --git a/grub-core/loader/loongarch64/linux.c b/grub-core/loader/loongarch64/linux.c
+index 5f1d8453b090..0b65249e64d9 100644
+--- a/grub-core/loader/loongarch64/linux.c
++++ b/grub-core/loader/loongarch64/linux.c
+@@ -29,6 +29,11 @@ GRUB_MOD_LICENSE ("GPLv3+");
+ 
+ #define INITRD_MAX_ADDRESS_OFFSET (32ULL * 1024 * 1024 * 1024)
+ 
++#define GRUB_EFI_LARCH_INITRD_MEDIA_GUID \
++  { 0x5568e427, 0x68fc, 0x4f3d,  \
++      { 0xac, 0x74, 0xca, 0x55, 0x52, 0x31, 0xcc, 0x68 } \
++  }
++
+ static struct linux_loongarch64_kernel_params kernel_params;
+ 
+ static grub_addr_t phys_addr;
+@@ -36,6 +41,67 @@ static grub_dl_t my_mod;
+ static int loaded;
+ static int is_bpi_boot;
+ static int grub_loongarch_linux_type = GRUB_LOONGARCH_LINUX_BAD;
++struct efi_initrd *initrd_tbl;
++
++grub_err_t
++grub_loongarch_setup_initrd_params (void)
++{
++  grub_efi_boot_services_t *b;
++  grub_efi_guid_t initrd_media_guid = GRUB_EFI_LARCH_INITRD_MEDIA_GUID;
++  grub_efi_status_t status;
++
++  if (!kernel_params.ramdisk_addr || !kernel_params.ramdisk_size)
++    {
++      grub_error (GRUB_ERR_BAD_ARGUMENT,
++		  N_("you need to load the initrd first"));
++      return GRUB_ERR_BAD_ARGUMENT;
++    }
++
++  /* Set initrd info to system table*/
++  b = grub_efi_system_table->boot_services;
++  initrd_tbl = grub_efi_allocate_any_pages (GRUB_EFI_BYTES_TO_PAGES (sizeof(struct efi_initrd)));
++  if (!initrd_tbl)
++    return grub_error (GRUB_ERR_IO, "cannot allocate tbl memory");
++
++  initrd_tbl->base = kernel_params.ramdisk_addr;
++  initrd_tbl->size = kernel_params.ramdisk_size;
++  status = b->install_configuration_table (&initrd_media_guid, initrd_tbl);
++  if (status != GRUB_EFI_SUCCESS)
++    {
++      grub_error (GRUB_ERR_IO, "failed to install initrd media");
++      goto free_tbl;
++    }
++
++  return GRUB_ERR_NONE;
++
++free_tbl:
++  if (initrd_tbl)
++    {
++      grub_efi_free_pages ((grub_addr_t) initrd_tbl,
++               GRUB_EFI_BYTES_TO_PAGES (sizeof(struct efi_initrd)));
++    }
++
++  return GRUB_ERR_IO;
++}
++
++void
++grub_loongarch_remove_initrd_params (void)
++{
++  grub_efi_boot_services_t *b;
++  grub_efi_guid_t initrd_media_guid = GRUB_EFI_LARCH_INITRD_MEDIA_GUID;
++
++  if (!initrd_tbl)
++    return;
++
++  b = grub_efi_system_table->boot_services;
++  b->install_configuration_table (&initrd_media_guid, NULL);
++
++  grub_efi_free_pages ((grub_addr_t) initrd_tbl,
++		       GRUB_EFI_BYTES_TO_PAGES (sizeof(struct efi_initrd)));
++
++  initrd_tbl = NULL;
++}
++
+ 
+ static grub_err_t
+ grub_linux_boot (void)
+diff --git a/include/grub/loongarch64/linux.h b/include/grub/loongarch64/linux.h
+index f20a719b1386..462ce69cabd4 100644
+--- a/include/grub/loongarch64/linux.h
++++ b/include/grub/loongarch64/linux.h
+@@ -179,6 +179,12 @@ struct loongsonlist_mem_map {
+     } GRUB_PACKED map[GRUB_LOONGSON3_BOOT_MEM_MAP_MAX];
+ }GRUB_PACKED;
+ 
++grub_err_t
++grub_loongarch_setup_initrd_params (void);
++
++void
++grub_loongarch_remove_initrd_params (void);
++
+ grub_err_t
+ finalize_efi_params_linux (struct linux_loongarch64_kernel_params *kernel_params);
+ 
+-- 
+2.33.0
+
