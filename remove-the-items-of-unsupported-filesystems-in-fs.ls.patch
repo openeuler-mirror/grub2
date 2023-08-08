@@ -1,0 +1,31 @@
+From 3a1e6b4f14c891a0faa31992d944dd35ef123b7f Mon Sep 17 00:00:00 2001
+From: Qiumiao Zhang <zhangqiumiao1@huawei.com>
+Date: Wed, 5 Jul 2023 16:53:49 +0800
+Subject: [PATCH] remove the items of unsupported filesystems in fs.lst
+
+---
+ grub-core/Makefile.am | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/grub-core/Makefile.am b/grub-core/Makefile.am
+index dd49939..fb487a8 100644
+--- a/grub-core/Makefile.am
++++ b/grub-core/Makefile.am
+@@ -368,10 +368,13 @@ endif
+ # List files
+ 
+ fs.lst: $(MARKER_FILES)
++	DISABLE_FS=(affs.marker afs.marker bfs.marker jfs.marker minix.marker minix2.marker minix3.marker minix_be.marker minix2_be.marker minix3_be.marker nilfs2.marker reiserfs.marker romfs.marker sfs.marker ufs1.marker ufs2.marker ufs1_be.marker); \
+ 	(for pp in $^; do \
+ 	  b=`basename $$pp .marker`; \
+ 	  if grep 'FS_LIST_MARKER' $$pp >/dev/null 2>&1; then \
+-	    echo $$b; \
++	    if [[ ! "$${DISABLE_FS[@]}" =~ $$b ]]; then \
++	        echo $$b; \
++	    fi; \
+ 	  fi; \
+ 	done) | sort -u > $@
+ platform_DATA += fs.lst
+-- 
+2.19.1
+
