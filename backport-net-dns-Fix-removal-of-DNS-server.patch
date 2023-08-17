@@ -1,0 +1,49 @@
+From f301a9356b6338e983eae38debe69bbd3a417b1a Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Renaud=20M=C3=A9trich?= <rmetrich@redhat.com>
+Date: Fri, 28 Apr 2023 13:05:37 +0200
+Subject: net/dns: Fix removal of DNS server
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+When deleting the DNS server, we get the following error message:
+-------- 8< ---------------- 8< ---------------- 8< ---------------- 8< --------
+grub> net_del_dns 192.168.122.1
+error: ../../grub-core/net/dns.c:646:no DNS reply received.
+-------- 8< ---------------- 8< ---------------- 8< ---------------- 8< --------
+
+This happens because the implementation is broken, it does a "add"
+internally instead of a "delete".
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=f301a9356b6338e983eae38debe69bbd3a417b1a
+Conflict:NA
+
+Signed-off-by: Renaud Métrich <rmetrich@redhat.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/net/dns.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/grub-core/net/dns.c b/grub-core/net/dns.c
+index afa3894..e51682d 100644
+--- a/grub-core/net/dns.c
++++ b/grub-core/net/dns.c
+@@ -765,11 +765,14 @@ grub_cmd_del_dns (struct grub_command *cmd __attribute__ ((unused)),
+ 
+   if (argc != 1)
+     return grub_error (GRUB_ERR_BAD_ARGUMENT, N_("one argument expected"));
+-  err = grub_net_resolve_address (args[1], &server);
++
++  err = grub_net_resolve_address (args[0], &server);
+   if (err)
+     return err;
+ 
+-  return grub_net_add_dns_server (&server);
++  grub_net_remove_dns_server (&server);
++
++  return GRUB_ERR_NONE;
+ }
+ 
+ static grub_command_t cmd, cmd_add, cmd_del, cmd_list;
+-- 
+cgit v1.1

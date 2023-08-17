@@ -334,3 +334,9 @@ Patch0326: remove-the-items-of-unsupported-filesystems-in-fs.ls.patch
 %ifarch loongarch64
 Patch0327: loongarch-Fix-the-initrd-parameter-passing.patch
 %endif
+Patch0328: backport-net-dns-Fix-removal-of-DNS-server.patch
+Patch0329: backport-net-dns-Simplify-error-handling-of-recv_hook-function.patch
+Patch0330: backport-net-dns-Fix-lookup-error-when-no-IPv6-is-returned.patch
+Patch0331: backport-util-grub-install-common-Fix-the-key-of.patch
+Patch0332: backport-kern-efi-mm-Fix-use-after-free-in-finish-boot-services.patch
+Patch0333: backport-kern-Check-for-NULL-when-closing-devices-and-disks.patch
