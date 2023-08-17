@@ -1,0 +1,50 @@
+From d09387287b7bbd7770bc9d172cc0e06181183e02 Mon Sep 17 00:00:00 2001
+From: Oliver Steffen <osteffen@redhat.com>
+Date: Fri, 26 May 2023 13:35:50 +0200
+Subject: kern: Check for NULL when closing devices and disks
+
+Add checks for NULL pointers to grub_device_close() and
+grub_disk_close() to make these functions more robust.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=d09387287b7bbd7770bc9d172cc0e06181183e02
+Conflict:NA
+
+Signed-off-by: Oliver Steffen <osteffen@redhat.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/kern/device.c | 3 +++
+ grub-core/kern/disk.c   | 4 ++++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/grub-core/kern/device.c b/grub-core/kern/device.c
+index f58b58c..2a6d81f 100644
+--- a/grub-core/kern/device.c
++++ b/grub-core/kern/device.c
+@@ -72,6 +72,9 @@ grub_device_open (const char *name)
+ grub_err_t
+ grub_device_close (grub_device_t device)
+ {
++  if (device == NULL)
++    return GRUB_ERR_NONE;
++
+   if (device->disk)
+     grub_disk_close (device->disk);
+ 
+diff --git a/grub-core/kern/disk.c b/grub-core/kern/disk.c
+index 05a28ab..3ca8528 100644
+--- a/grub-core/kern/disk.c
++++ b/grub-core/kern/disk.c
+@@ -294,6 +294,10 @@ void
+ grub_disk_close (grub_disk_t disk)
+ {
+   grub_partition_t part;
++
++  if (disk == NULL)
++    return;
++
+   grub_dprintf ("disk", "Closing `%s'...\n", disk->name);
+ 
+   if (disk->dev && disk->dev->disk_close)
+-- 
+2.19.1
+
