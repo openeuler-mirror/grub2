@@ -14,7 +14,7 @@
 Name:		grub2
 Epoch:		1
 Version:	2.06
-Release:	34
+Release:	35
 Summary:	Bootloader with support for Linux, Multiboot and more
 License:	GPLv3+
 URL:		http://www.gnu.org/software/grub/
@@ -440,6 +440,17 @@ fi
 %{_datadir}/man/man*
 
 %changelog
+* Thu Aug 17 2023 zhangqiumiao <zhangqiumiao1@huawei.com> - 1:2.06-35
+- Type:bugfix
+- CVE:NA
+- SUG:NA
+- DESC:kern: Check for NULL when closing devices and disks
+       kern/efi/mm: Fix use-after-free in finish boot services
+       util/grub-install-common: Fix the key of the --core-compress option
+       net/dns: Fix lookup error when no IPv6 is returned
+       net/dns: Simplify error handling of recv_hook() function
+       net/dns: Fix removal of DNS server
+
 * Mon Aug 7 2023 mengyingkun <mengyingkun@loongson.com> - 1:2.06-34
 - Type:bugfix
 - CVE:NA
