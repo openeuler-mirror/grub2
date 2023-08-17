@@ -1,0 +1,43 @@
+From a6eba8f1276e58d94b4134b2488768349c8f37dc Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=C3=81kos=20Nagy?= <nagyakos@outlook.com>
+Date: Fri, 5 May 2023 14:04:28 +0200
+Subject: util/grub-install-common: Fix the key of the --core-compress option
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Commit f23bc6510 (Transform -C option to grub-mkstandalone to
+--core-compress available in all grub-install flavours.) declared
+a new long option for specifying the compression method to use for
+the core image.
+
+However, the option key has not been replaced in the parser function,
+it still expects the old one formerly used by grub-mkstandalone.
+Because of this the option is not recognized by any of the utils for
+which it is listed as supported.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=a6eba8f1276e58d94b4134b2488768349c8f37dc
+Conflict:NA
+
+Signed-off-by: Ákos Nagy <nagyakos@outlook.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ util/grub-install-common.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/util/grub-install-common.c b/util/grub-install-common.c
+index 57ac445..52a29d1 100644
+--- a/util/grub-install-common.c
++++ b/util/grub-install-common.c
+@@ -472,7 +472,7 @@ grub_install_parse (int key, char *arg)
+   const char *end;
+   switch (key)
+     {
+-    case 'C':
++    case GRUB_INSTALL_OPTIONS_INSTALL_CORE_COMPRESS:
+       if (grub_strcmp (arg, "xz") == 0)
+ 	{
+ #ifdef HAVE_LIBLZMA
+-- 
+cgit v1.1
+
