@@ -1,0 +1,102 @@
+From 1be86fae1587cb8c53c2327971c8fc94fcb3234e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Renaud=20M=C3=A9trich?= <rmetrich@redhat.com>
+Date: Wed, 3 May 2023 12:21:31 +0200
+Subject: net/dns: Fix lookup error when no IPv6 is returned
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+When trying to resolve DNS names into IP addresses, the DNS code fails
+from time to time with the following error:
+-------- 8< ---------------- 8< ---------------- 8< ---------------- 8< --------
+error: ../../grub-core/net/dns.c:688:no DNS record found.
+-------- 8< ---------------- 8< ---------------- 8< ---------------- 8< --------
+
+This happens when both IPv4 and IPv6 queries are performed against the
+DNS server (e.g. 8.8.8.8) but there is no IP returned for IPv6 query, as
+shown below:
+-------- 8< ---------------- 8< ---------------- 8< ---------------- 8< --------
+grub> net_del_dns 192.168.122.1
+grub> net_add_dns 8.8.8.8
+grub> net_nslookup ipv4.test-ipv6.com
+error: ../../grub-core/net/dns.c:688:no DNS record found.
+grub> net_nslookup ipv4.test-ipv6.com
+216.218.228.115
+-------- 8< ---------------- 8< ---------------- 8< ---------------- 8< --------
+
+The root cause is the code exiting prematurely when the data->addresses
+buffer has been allocated in recv_hook(), even if there was no address
+returned last time recv_hook() executed.
+
+Reference:https://git.savannah.gnu.org/cgit/grub.git/commit?id=1be86fae1587cb8c53c2327971c8fc94fcb3234e
+Conflict:NA
+
+Signed-off-by: Renaud Métrich <rmetrich@redhat.com>
+Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+---
+ grub-core/net/dns.c | 22 ++++++----------------
+ 1 file changed, 6 insertions(+), 16 deletions(-)
+
+diff --git a/grub-core/net/dns.c b/grub-core/net/dns.c
+index 9760980..fcc09aa 100644
+--- a/grub-core/net/dns.c
++++ b/grub-core/net/dns.c
+@@ -261,7 +261,7 @@ recv_hook (grub_net_udp_socket_t sock __attribute__ ((unused)),
+   /* Code apparently assumed that only one packet is received as response.
+      We may get multiple responses due to network condition, so check here
+      and quit early. */
+-  if (*data->addresses)
++  if (*data->naddresses)
+     goto out;
+ 
+   head = (struct dns_header *) nb->data;
+@@ -305,11 +305,7 @@ recv_hook (grub_net_udp_socket_t sock __attribute__ ((unused)),
+       grub_uint32_t ttl = 0;
+       grub_uint16_t length;
+       if (ptr >= nb->tail)
+-	{
+-	  if (!*data->naddresses)
+-	    grub_free (*data->addresses);
+-	  goto out;
+-	}
++	goto out;
+       ignored = !check_name (ptr, nb->data, nb->tail, data->name);
+       while (ptr < nb->tail && !((*ptr & 0xc0) || *ptr == 0))
+ 	ptr += *ptr + 1;
+@@ -317,11 +313,7 @@ recv_hook (grub_net_udp_socket_t sock __attribute__ ((unused)),
+ 	ptr++;
+       ptr++;
+       if (ptr + 10 >= nb->tail)
+-	{
+-	  if (!*data->naddresses)
+-	    grub_free (*data->addresses);
+-	  goto out;
+-	}
++	goto out;
+       if (*ptr++ != 0)
+ 	ignored = 1;
+       class = *ptr++;
+@@ -337,11 +329,7 @@ recv_hook (grub_net_udp_socket_t sock __attribute__ ((unused)),
+       length = *ptr++ << 8;
+       length |= *ptr++;
+       if (ptr + length > nb->tail)
+-	{
+-	  if (!*data->naddresses)
+-	    grub_free (*data->addresses);
+-	  goto out;
+-	}
++	goto out;
+       if (!ignored)
+ 	{
+ 	  if (ttl_all > ttl)
+@@ -428,6 +416,8 @@ recv_hook (grub_net_udp_socket_t sock __attribute__ ((unused)),
+  out:
+   grub_netbuff_free (nb);
+   grub_free (redirect_save);
++  if (!*data->naddresses)
++    grub_free (*data->addresses);
+   return GRUB_ERR_NONE;
+ }
+ 
+-- 
+cgit v1.1
